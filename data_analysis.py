@@ -189,10 +189,7 @@ def main():
     dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
 
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
-    if 0:
-        ax = sns.boxplot(x='CarType', y='FunctionAcceptance', data=df)
-        ax = sns.swarmplot(x='CarType', y='FunctionAcceptance', data=df)
-        plt.show()
+    #plot_variance(df, 'CarType', 'FunctionAcceptance')
     if 1:
         for variable in dependent_variables:
             df[variable]=pd.to_numeric(df[variable], errors='coerce')
@@ -219,6 +216,10 @@ def main():
     print("Kruskal-Wallis Test")
     RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
     PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
+    indep_kruskal = []
+    dep_kruskal = []
+    statistics_kruskal = []
+    p_value_kruskal = []
     if 0:
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
@@ -246,9 +247,21 @@ def main():
                 print("This variable couldn't be printed: " + independent_variable)
                 continue
             print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
-
-
-    
+            if p_value<0.1:
+                indep_kruskal.append(independent_variable)
+                dep_kruskal.append(dependent_variable)
+                statistics_kruskal.append(stat)
+                p_value_kruskal.append(p_value)
+    # plot_variance(df, 'Education', 'PackageAcceptance')
+     
+    if 0: #print a LaTeX type table 
+        df_kruskal = pd.DataFrame({'Independent var.':indep_kruskal,
+                                'Acceptance of':dep_kruskal,
+                                'stat':statistics_kruskal,
+                                'p-value':p_value_kruskal})
+        print(df_kruskal.to_latex(index=False,
+                                formatters={"name":str.upper},
+                                float_format="{:.2f}".format))
 
     # Mann-Whitney U test - returns NAN 
     # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided')) #other alternative: greater
@@ -376,6 +389,11 @@ def print_mean_std_perc(df, columns):
         print(column)
         print("usage of subscription: ", df[column].mean(), " std: ", df[column].std())
         print("percentage: ", (df[column].value_counts()/len(df.index)))
+
+def plot_variance(df, independent_variable, dependent_variable):
+    ax = sns.boxplot(x=independent_variable, y=dependent_variable, data=df)
+    ax = sns.swarmplot(x=independent_variable, y=dependent_variable, data=df)
+    plt.show()
 
 if __name__ == '__main__':
     main()
