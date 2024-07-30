@@ -182,38 +182,76 @@ def main():
         plt.ylabel("Acceptance of functions-on-demand")
         plt.show()
     
+
+    #categorical variables
+    independent_variables = list(demographics_categorical.values())
+    independent_variables.remove('Culture')
+    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
-    categorical_variables = list(demographics_categorical.values())
     if 0:
         ax = sns.boxplot(x='CarType', y='FunctionAcceptance', data=df)
         ax = sns.swarmplot(x='CarType', y='FunctionAcceptance', data=df)
         plt.show()
-
-    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-    for variable in dependent_variables:
-        df[variable]=pd.to_numeric(df[variable], errors='coerce')
-    
-    df['CarType']=pd.to_numeric(df['CarType'], errors='coerce')
-    for independent_variable in categorical_variables:
-        for dependent_variable in dependent_variables:
-            relationship = independent_variable + ' ~ ' + dependent_variable
-            print(relationship)
-            model = ols('CarType ~ FunctionAcceptance', data=df).fit()
-            anova_table = sm.stats.anova_lm(model, typ=2)
-            print(anova_table)
+    if 1:
+        for variable in dependent_variables:
+            df[variable]=pd.to_numeric(df[variable], errors='coerce')
+        
+        
+        for independent_variable in independent_variables:
+            df[independent_variable]=pd.to_numeric(df[independent_variable], errors='coerce')
+            for dependent_variable in dependent_variables:
+                relationship = independent_variable + " ~ " + dependent_variable
+                print("'"+relationship+"'")
+                df_modified = df[[independent_variable, dependent_variable]]
+                df_modified = df_modified.dropna(how='any') #how='all' also possible
+                #relationship = "DrivingLicense ~ FunctionAcceptance"
+                model = ols(formula=relationship, data=df_modified).fit() # "DrivingLicense ~ FunctionAcceptance"
+                anova_table = sm.stats.anova_lm(model, typ=2)
+                print(anova_table)
+        # 'CarType ~ PackageAcceptance' 0.068238
+        # 'RideTypeShopping ~ FunctionAcceptance' 0.074672
+        # PurchasePrioFunctions ~ PackageAcceptance 0.062608
+            
 
     # Kruskal-Wallis Test - non-parametric equivalent of one-way ANOVA
-    df_modified = df[['CarType', 'FunctionAcceptance']]
-    #df_modified = df_modified.groupby('CarType')['FunctionAcceptance'].apply(list).reset_index()
-    df_modified = df_modified.pivot(columns='CarType', values='FunctionAcceptance')
-    groups = []
-    for column_name in df_modified.columns.values:
-        groups.append(df_modified[column_name].dropna(how='any').to_list())
-    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2])
-    print('Kruskal-Wallis: stat: ', stat, ' p_value: ', p_value)
+    print(independent_variables)
+    print("Kruskal-Wallis Test")
+    RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
+    PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
+    if 0:
+        deleted_variables = RideTypeNames + PurchasePrioNames
+        for var in deleted_variables:
+            independent_variables.remove(var)
+    for independent_variable in independent_variables:
+        #print("percentage: ", (df[variable].value_counts()/len(df.index)))
+        var_num = len(df[independent_variable].value_counts())
+        print(independent_variable + ": " + str(var_num))
+        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+        for dependent_variable in dependent_variables:
+            df_modified = df[[independent_variable, dependent_variable]]
+            df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+            groups = []
+            for column_name in df_modified.columns.values:
+                groups.append(df_modified[column_name].dropna(how='any').to_list())
+            if var_num == 4:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3])
+            elif var_num == 5:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4])
+            elif var_num == 6:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+            elif var_num == 2:
+                stat, p_value = stats.kruskal(groups[0],groups[1])
+            else:
+                print("This variable couldn't be printed: " + independent_variable)
+                continue
+            print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
+
+
+    
 
     # Mann-Whitney U test - returns NAN 
-    print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided')) #other alternative: greater
+    # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided')) #other alternative: greater
     
     # Levene Test
     df_modified = df[['CarType', 'FunctionAcceptance']]
@@ -225,19 +263,21 @@ def main():
     stat, p_value = stats.levene(groups[0],groups[1],groups[2])
     print('Levene: stat: ', stat, ' p_value: ', p_value)
 
-    # MANOVA https://www.reneshbedre.com/blog/manova-python.html
-    model = MANOVA.from_formula('CarType + Education ~ FunctionAcceptance', data=df)
-    print(model.mv_test()) # Pillai's trace is relevant
+    if 0:
+        # MANOVA https://www.reneshbedre.com/blog/manova-python.html
+        model = MANOVA.from_formula('CarType + Education ~ FunctionAcceptance', data=df)
+        print(model.mv_test()) # Pillai's trace is relevant
 
-    # POST HOC tests for significant ANOVA
-    #print(model.summary())
-    df_modified = df[['CarType', 'FunctionAcceptance']]
-    data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
-    X = data.drop(columns=['FunctionAcceptance'])
-    y = data['FunctionAcceptance']
-    X = sm.add_constant(X)
-    model = sm.OLS(y,X).fit()
-    #print(model.summary())
+    if 0:
+        # POST HOC tests for significant ANOVA
+        #print(model.summary())
+        df_modified = df[['CarType', 'FunctionAcceptance']]
+        data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
+        X = data.drop(columns=['FunctionAcceptance'])
+        y = data['FunctionAcceptance']
+        X = sm.add_constant(X)
+        model = sm.OLS(y,X).fit()
+        #print(model.summary())
 
     # POST HOX test for significant MANOVA
 
