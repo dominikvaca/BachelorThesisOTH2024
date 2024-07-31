@@ -284,20 +284,27 @@ def main():
         df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
         df.loc[(df[geo_variable] == 276), geo_variable]=1 # Germany code
         df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech code
+    print("STD for countries")
+    for geo_variable in geo_variables:
+        for dependent_variable in dependent_variables:
+            print(geo_variable, "~", dependent_variable)
+            for i in range(3):
+                print(i+1, "std:", df.loc[(df[geo_variable] == i+1), dependent_variable].std())
+    print("Levene test for countries") # more robust test than F-test
+    levene_printout(df, dependent_variables, geo_variables)
+    plot_variance(df, 'Country', 'FunctionAcceptance')
     print("ANOVA for countries")
     anova_printout(df, geo_variables, dependent_variables)
-    if 0:
-        plot_variance(df, geo_variables[0], dependent_variables[0])
-        plot_variance(df, geo_variables[0], dependent_variables[1])
-        plot_variance(df, geo_variables[1], dependent_variables[0])
-        plot_variance(df, geo_variables[1], dependent_variables[1])
     print("Kruskal for countries")
     print(kruskal_get_results(df, geo_variables, dependent_variables))
-
     print("Tukey for countries")
     tukey_printout(df, geo_variables, dependent_variables)
+    if 0:
+        plot_variance(df, geo_variables[1], dependent_variables[0])
+        plot_variance(df, geo_variables[1], dependent_variables[1])
 
-    # differences of attitudes
+    # RQ5: role of tangibility
+    # moderation and mediation analyses
             
     
     # Decision Tree 
@@ -307,6 +314,8 @@ def main():
     clf = clf.fit(X,y)
     plt.figure()
     tree.plot_tree(clf)
+
+
 
 
     #plt.show()
@@ -500,6 +509,19 @@ def tukey_printout(df, independent_variables, dependent_variables):
             print(result)
                 #plot_variance(df, independent_variable, dependent_variable)
             iteration +=1
+
+def levene_printout(df, dependent_variables, geo_variables):
+    for geo_variable in geo_variables:
+        for dependent_variable in dependent_variables:
+            print(geo_variable, "~", dependent_variable)
+            df_modified = df[[geo_variable, dependent_variable]]
+            #df_modified = df_modified.groupby('CarType')['FunctionAcceptance'].apply(list).reset_index()
+            df_modified = df_modified.pivot(columns=geo_variable, values=dependent_variable)
+            groups = []
+            for column_name in df_modified.columns.values:
+                groups.append(df_modified[column_name].dropna(how='any').to_list())
+            stat, p_value = stats.levene(groups[0],groups[1],groups[2])
+            print('Levene: stat: ', stat, ' p_value: ', p_value)
 
 
 if __name__ == '__main__':
