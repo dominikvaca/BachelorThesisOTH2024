@@ -189,25 +189,10 @@ def main():
     independent_variables = list(demographics_categorical.values())
     independent_variables.remove('Culture')
     dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
     #plot_variance(df, 'CarType', 'FunctionAcceptance')
     if 0:
-        for variable in dependent_variables:
-            df[variable]=pd.to_numeric(df[variable], errors='coerce')
-        
-        
-        for independent_variable in independent_variables:
-            df[independent_variable]=pd.to_numeric(df[independent_variable], errors='coerce')
-            for dependent_variable in dependent_variables:
-                relationship = independent_variable + " ~ " + dependent_variable
-                print("'"+relationship+"'")
-                df_modified = df[[independent_variable, dependent_variable]]
-                df_modified = df_modified.dropna(how='any') #how='all' also possible
-                #relationship = "DrivingLicense ~ FunctionAcceptance"
-                model = ols(formula=relationship, data=df_modified).fit() # "DrivingLicense ~ FunctionAcceptance"
-                anova_table = sm.stats.anova_lm(model, typ=2)
-                print(anova_table)
+        anova_printout(df, independent_variables, dependent_variables)
         # 'CarType ~ PackageAcceptance' 0.068238
         # 'RideTypeShopping ~ FunctionAcceptance' 0.074672
         # PurchasePrioFunctions ~ PackageAcceptance 0.062608
@@ -215,55 +200,18 @@ def main():
 
     # Kruskal-Wallis Test - non-parametric equivalent of one-way ANOVA
     #print(independent_variables)
-    #print("Kruskal-Wallis Test")
     RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
     PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
-    indep_kruskal = []
-    dep_kruskal = []
-    statistics_kruskal = []
-    p_value_kruskal = []
-    significant_independent_variables = []
+    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
     if 0:
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
             independent_variables.remove(var)
-    if 1:
-        for independent_variable in independent_variables:
-            #print("percentage: ", (df[variable].value_counts()/len(df.index)))
-            var_num = len(df[independent_variable].value_counts())
-            #print(independent_variable + ": " + str(var_num))
-            dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-            for dependent_variable in dependent_variables:
-                df_modified = df[[independent_variable, dependent_variable]]
-                df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
-                groups = []
-                for column_name in df_modified.columns.values:
-                    groups.append(df_modified[column_name].dropna(how='any').to_list())
-                if var_num == 4:
-                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3])
-                elif var_num == 5:
-                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4])
-                elif var_num == 6:
-                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
-                elif var_num == 2:
-                    stat, p_value = stats.kruskal(groups[0],groups[1])
-                else:
-                    # print("This variable couldn't be printed: " + independent_variable)
-                    continue
-                #print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
-                indep_kruskal.append(independent_variable)
-                dep_kruskal.append(dependent_variable)
-                statistics_kruskal.append(stat)
-                p_value_kruskal.append(p_value)
-            if p_value<0.1:
-                significant_independent_variables.append(independent_variable)
-    # plot_variance(df, 'Education', 'PackageAcceptance')
-     
+    if 0:
+        print("Kruskal-Wallis Test")
+        df_kruskal = kruskal_get_results(df, independent_variables, dependent_variables)
+        print(df_kruskal)
     if 0: #print a LaTeX type table 
-        df_kruskal = pd.DataFrame({'Independent var.':indep_kruskal,
-                                'Acceptance of':dep_kruskal,
-                                'stat':statistics_kruskal,
-                                'p-value':p_value_kruskal})
         print(df_kruskal.to_latex(index=False,
                                 formatters={"name":str.upper},
                                 float_format="{:.2f}".format))
@@ -284,46 +232,18 @@ def main():
 
     # MANOVA https://www.reneshbedre.com/blog/manova-python.html
     if 0:
-        
         model = MANOVA.from_formula('CarType + Education ~ FunctionAcceptance', data=df)
         print(model.mv_test()) # Pillai's trace is relevant
         print(model.summary())
 
     # TUKEY - POST HOC tests for significant ANOVA
     if 0:
+        significant_independent_variables = df_kruskal.loc[df_kruskal['p_value'] < 0.1,'independent_var'].to_list()
+        # inspo: df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         print("post hoc for anova")
         print("indep: ", significant_independent_variables, "\ndep: ", dependent_variables)
-        iteration = 0
-        for independent_variable in significant_independent_variables:
-            
-            for dependent_variable in dependent_variables:
-                df_modified = df[[independent_variable, dependent_variable]]
-                df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
-                groups = []
-                for column_name in df_modified.columns.values:
-                    group = (df_modified[column_name].dropna(how='any').to_list())
-                    if len(group) > 1:
-                        groups.append(group)
-                var_num = len(groups)
-                if iteration in [0,8,11]: #selected interesting results
-                    print(" - ",iteration,". ", independent_variable, " ~ ",dependent_variable)
-                    if var_num == 2:
-                        result = tukey_hsd(groups[0],groups[1])
-                    elif var_num == 3:
-                        result = tukey_hsd(groups[0],groups[1],groups[2])
-                    elif var_num == 4:
-                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
-                    elif var_num == 5:
-                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
-                    elif var_num == 6:
-                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
-                    else:
-                        # print("This variable couldn't be printed: " + independent_variable)
-                        continue
-                    print(result)
-                    plot_variance(df, independent_variable, dependent_variable)
-                iteration +=1
+        tukey_printout(df, significant_independent_variables, dependent_variables)
         # interesting relationships
         
         if 0: #not used, not working
@@ -358,12 +278,24 @@ def main():
 
     # RQ4: Difference between German and Czech Participants
     # differences of the groups
-    geo_variables = ['Country', 'Birthplace']
+    geo_variables = ['Country', 'BirthPlace']
+    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
     for geo_variable in geo_variables:
-        df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3
-        df[geo_variable].replace(276,1,inplace=True)
-        df[geo_variable].replace(203,2,inplace=True)
+        df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
+        df.loc[(df[geo_variable] == 276), geo_variable]=1 # Germany code
+        df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech code
+    print("ANOVA for countries")
+    anova_printout(df, geo_variables, dependent_variables)
+    if 0:
+        plot_variance(df, geo_variables[0], dependent_variables[0])
+        plot_variance(df, geo_variables[0], dependent_variables[1])
+        plot_variance(df, geo_variables[1], dependent_variables[0])
+        plot_variance(df, geo_variables[1], dependent_variables[1])
+    print("Kruskal for countries")
+    print(kruskal_get_results(df, geo_variables, dependent_variables))
 
+    print("Tukey for countries")
+    tukey_printout(df, geo_variables, dependent_variables)
 
     # differences of attitudes
             
@@ -375,12 +307,15 @@ def main():
     clf = clf.fit(X,y)
     plt.figure()
     tree.plot_tree(clf)
+
+
     #plt.show()
+
 
     # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process), 
 
 
-
+    
 def privacy_data_cleaning(df):
     # information about the study subject hours
     df.drop('EN01_01', axis=1, inplace=True)
@@ -481,6 +416,91 @@ def plot_variance(df, independent_variable, dependent_variable):
     ax = sns.boxplot(x=independent_variable, y=dependent_variable, data=df)
     ax = sns.swarmplot(x=independent_variable, y=dependent_variable, data=df)
     plt.show()
+
+def anova_printout(df, independent_variables, dependent_variables):
+    for variable in dependent_variables:
+        df[variable]=pd.to_numeric(df[variable], errors='coerce')
+    for independent_variable in independent_variables:
+        df[independent_variable]=pd.to_numeric(df[independent_variable], errors='coerce')
+        for dependent_variable in dependent_variables:
+            relationship = independent_variable + " ~ " + dependent_variable
+            print("'"+relationship+"'")
+            df_modified = df[[independent_variable, dependent_variable]]
+            df_modified = df_modified.dropna(how='any') #how='all' also possible
+            model = ols(formula=relationship, data=df_modified).fit()
+            anova_table = sm.stats.anova_lm(model, typ=2)
+            print(anova_table)
+
+def kruskal_get_results(df, independent_variables, dependent_variables):
+    indep_kruskal = []
+    dep_kruskal = []
+    statistics_kruskal = []
+    p_value_kruskal = []
+    for independent_variable in independent_variables:
+            #print("percentage: ", (df[variable].value_counts()/len(df.index)))
+        var_num = len(df[independent_variable].value_counts())
+            #print(independent_variable + ": " + str(var_num))
+            
+        for dependent_variable in dependent_variables:
+            df_modified = df[[independent_variable, dependent_variable]]
+            df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+            groups = []
+            for column_name in df_modified.columns.values:
+                groups.append(df_modified[column_name].dropna(how='any').to_list())
+            if var_num == 2:
+                stat, p_value = stats.kruskal(groups[0],groups[1])
+            elif var_num == 3:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2])
+            elif var_num == 4:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3])
+            elif var_num == 5:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4])
+            elif var_num == 6:
+                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+            else:
+                    # print("This variable couldn't be printed: " + independent_variable)
+                continue
+                #print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
+            indep_kruskal.append(independent_variable)
+            dep_kruskal.append(dependent_variable)
+            statistics_kruskal.append(stat)
+            p_value_kruskal.append(p_value)
+    df_kruskal = pd.DataFrame({'independent_var':indep_kruskal,
+                                    'dependent_var':dep_kruskal,
+                                    'stat':statistics_kruskal,
+                                    'p_value':p_value_kruskal})
+    return df_kruskal
+
+def tukey_printout(df, independent_variables, dependent_variables):
+    iteration = 0
+    for independent_variable in independent_variables: 
+        for dependent_variable in dependent_variables:
+            df_modified = df[[independent_variable, dependent_variable]]
+            df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+            groups = []
+            for column_name in df_modified.columns.values:
+                group = (df_modified[column_name].dropna(how='any').to_list())
+                if len(group) > 1:
+                    groups.append(group)
+            var_num = len(groups)
+            print(" - ",iteration,". ", independent_variable, " ~ ",dependent_variable)
+            if var_num == 2:
+                result = tukey_hsd(groups[0],groups[1])
+            elif var_num == 3:
+                result = tukey_hsd(groups[0],groups[1],groups[2])
+            elif var_num == 4:
+                result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
+            elif var_num == 5:
+                result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
+            elif var_num == 6:
+                result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+            else:
+                    # print("This variable couldn't be printed: " + independent_variable)
+                continue
+            print(result)
+                #plot_variance(df, independent_variable, dependent_variable)
+            iteration +=1
+
 
 if __name__ == '__main__':
     main()
