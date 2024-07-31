@@ -24,6 +24,7 @@ def main():
     df = data_cleaning(df)
     print("Cleaned table: ", df.shape)
     df = recode_inverted_variables(df)
+    df = recode_driving_license(df)
 
     
     #add needed variables
@@ -250,7 +251,7 @@ def main():
                     # print("This variable couldn't be printed: " + independent_variable)
                     continue
                 #print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
-                if p_value<0.1:
+                
                     indep_kruskal.append(independent_variable)
                     dep_kruskal.append(dependent_variable)
                     statistics_kruskal.append(stat)
@@ -290,7 +291,7 @@ def main():
         print(model.summary())
 
     # TUKEY - POST HOC tests for significant ANOVA
-    if 1:
+    if 0:
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         print("post hoc for anova")
         print("indep: ", significant_independent_variables, "\ndep: ", dependent_variables)
@@ -306,23 +307,22 @@ def main():
                     if len(group) > 1:
                         groups.append(group)
                 var_num = len(groups)
-                if var_num == 2:
-                    result = tukey_hsd(groups[0],groups[1])
-                elif var_num == 3:
-                    result = tukey_hsd(groups[0],groups[1],groups[2])
-                elif var_num == 4:
-                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
-                elif var_num == 5:
-                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
-                elif var_num == 6:
-                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
-                else:
-                    # print("This variable couldn't be printed: " + independent_variable)
-                    continue
-                
-                print(" - ",iteration,". ", independent_variable, " ~ ",dependent_variable)
-                print(result)
-                if iteration in [0,4,6,8,11,14,20,21]:
+                if iteration in [0,8,11]: #selected interesting results
+                    print(" - ",iteration,". ", independent_variable, " ~ ",dependent_variable)
+                    if var_num == 2:
+                        result = tukey_hsd(groups[0],groups[1])
+                    elif var_num == 3:
+                        result = tukey_hsd(groups[0],groups[1],groups[2])
+                    elif var_num == 4:
+                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
+                    elif var_num == 5:
+                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
+                    elif var_num == 6:
+                        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+                    else:
+                        # print("This variable couldn't be printed: " + independent_variable)
+                        continue
+                    print(result)
                     plot_variance(df, independent_variable, dependent_variable)
                 iteration +=1
         # interesting relationships
@@ -339,11 +339,17 @@ def main():
             model = sm.OLS(y,X).fit()
             print(model.summary())
 
- 
-
-    # POST HOX test for significant MANOVA
-
-
+    # RQ3: What psychological concepts influence the functions-on-demand acceptance?
+    independent_variables = new_variables
+    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+    print_mean_std_perc(df, independent_variables+dependent_variables)
+    for independent_variable in independent_variables:
+        for dependent_variable in dependent_variables:
+            print(" -") # LAST THING - finish the loops to show the correlations
+            df_modified = df[['CarSubscriptionExp', 'FunctionAcceptance']].dropna(how='any') #how='all' also possible
+            print(stats.pearsonr(df_modified['CarSubscriptionExp'], df_modified['FunctionAcceptance']))
+        
+    
     # Decision Tree 
 
     X, y = df[['Gender']],df['FunctionAcceptance']
@@ -382,6 +388,20 @@ def recode_inverted_variables(df):
     recode_list = ["CA07_18", "CT01_02", "CT01_03", "FA01_10"]
     for variable in recode_list:
         df[variable] = 7-df[variable]
+    return df
+
+def recode_driving_license(df):
+    #recode variables
+    recode_list = ["CA01"]
+    dictionary = {1: 1,
+                  2: 3,
+                  3: 4,
+                  4: 5,
+                  5: 6,
+                  6: 2}
+    for variable in recode_list:
+        # df[variable] = df.replace({variable: dictionary})
+        df[variable] = df[variable].map(dictionary)
     return df
 
 def add_variables(df, new_variables, items):
