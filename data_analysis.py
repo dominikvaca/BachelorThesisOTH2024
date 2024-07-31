@@ -190,7 +190,7 @@ def main():
 
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
     #plot_variance(df, 'CarType', 'FunctionAcceptance')
-    if 1:
+    if 0:
         for variable in dependent_variables:
             df[variable]=pd.to_numeric(df[variable], errors='coerce')
         
@@ -224,34 +224,35 @@ def main():
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
             independent_variables.remove(var)
-    for independent_variable in independent_variables:
-        #print("percentage: ", (df[variable].value_counts()/len(df.index)))
-        var_num = len(df[independent_variable].value_counts())
-        print(independent_variable + ": " + str(var_num))
-        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-        for dependent_variable in dependent_variables:
-            df_modified = df[[independent_variable, dependent_variable]]
-            df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
-            groups = []
-            for column_name in df_modified.columns.values:
-                groups.append(df_modified[column_name].dropna(how='any').to_list())
-            if var_num == 4:
-                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3])
-            elif var_num == 5:
-                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4])
-            elif var_num == 6:
-                stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
-            elif var_num == 2:
-                stat, p_value = stats.kruskal(groups[0],groups[1])
-            else:
-                print("This variable couldn't be printed: " + independent_variable)
-                continue
-            print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
-            if p_value<0.1:
-                indep_kruskal.append(independent_variable)
-                dep_kruskal.append(dependent_variable)
-                statistics_kruskal.append(stat)
-                p_value_kruskal.append(p_value)
+    if 1:
+        for independent_variable in independent_variables:
+            #print("percentage: ", (df[variable].value_counts()/len(df.index)))
+            var_num = len(df[independent_variable].value_counts())
+            #print(independent_variable + ": " + str(var_num))
+            dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+            for dependent_variable in dependent_variables:
+                df_modified = df[[independent_variable, dependent_variable]]
+                df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+                groups = []
+                for column_name in df_modified.columns.values:
+                    groups.append(df_modified[column_name].dropna(how='any').to_list())
+                if var_num == 4:
+                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3])
+                elif var_num == 5:
+                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4])
+                elif var_num == 6:
+                    stat, p_value = stats.kruskal(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+                elif var_num == 2:
+                    stat, p_value = stats.kruskal(groups[0],groups[1])
+                else:
+                    # print("This variable couldn't be printed: " + independent_variable)
+                    continue
+                #print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
+                if p_value<0.1:
+                    indep_kruskal.append(independent_variable)
+                    dep_kruskal.append(dependent_variable)
+                    statistics_kruskal.append(stat)
+                    p_value_kruskal.append(p_value)
     # plot_variance(df, 'Education', 'PackageAcceptance')
      
     if 0: #print a LaTeX type table 
@@ -267,30 +268,33 @@ def main():
     # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided')) #other alternative: greater
     
     # Levene Test
-    df_modified = df[['CarType', 'FunctionAcceptance']]
-    #df_modified = df_modified.groupby('CarType')['FunctionAcceptance'].apply(list).reset_index()
-    df_modified = df_modified.pivot(columns='CarType', values='FunctionAcceptance')
-    groups = []
-    for column_name in df_modified.columns.values:
-        groups.append(df_modified[column_name].dropna(how='any').to_list())
-    stat, p_value = stats.levene(groups[0],groups[1],groups[2])
-    print('Levene: stat: ', stat, ' p_value: ', p_value)
+    if 0:
+        df_modified = df[['CarType', 'FunctionAcceptance']]
+        #df_modified = df_modified.groupby('CarType')['FunctionAcceptance'].apply(list).reset_index()
+        df_modified = df_modified.pivot(columns='CarType', values='FunctionAcceptance')
+        groups = []
+        for column_name in df_modified.columns.values:
+            groups.append(df_modified[column_name].dropna(how='any').to_list())
+        stat, p_value = stats.levene(groups[0],groups[1],groups[2])
+        print('Levene: stat: ', stat, ' p_value: ', p_value)
 
     if 0:
         # MANOVA https://www.reneshbedre.com/blog/manova-python.html
         model = MANOVA.from_formula('CarType + Education ~ FunctionAcceptance', data=df)
         print(model.mv_test()) # Pillai's trace is relevant
+        print(model.summary())
 
-    if 0:
+    if 1:
+        print("post hoc for anova")
+        print("variables: ", indep_kruskal, ", ", dep_kruskal)
         # POST HOC tests for significant ANOVA
-        #print(model.summary())
         df_modified = df[['CarType', 'FunctionAcceptance']]
         data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
         X = data.drop(columns=['FunctionAcceptance'])
         y = data['FunctionAcceptance']
         X = sm.add_constant(X)
         model = sm.OLS(y,X).fit()
-        #print(model.summary())
+        print(model.summary())
 
     # POST HOX test for significant MANOVA
 
