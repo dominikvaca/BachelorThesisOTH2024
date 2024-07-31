@@ -8,7 +8,8 @@ from statsmodels.formula.api import ols
 from statsmodels.multivariate.manova import MANOVA
 import statsmodels.formula.api as smf
 from sklearn import tree
-from scipy.stats import tukey_hsd
+from scipy.stats import f_oneway, tukey_hsd
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from scipy import stats
 import seaborn as sns
 
@@ -212,14 +213,15 @@ def main():
             
 
     # Kruskal-Wallis Test - non-parametric equivalent of one-way ANOVA
-    print(independent_variables)
-    print("Kruskal-Wallis Test")
+    #print(independent_variables)
+    #print("Kruskal-Wallis Test")
     RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
     PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
     indep_kruskal = []
     dep_kruskal = []
     statistics_kruskal = []
     p_value_kruskal = []
+    significant_independent_variables = []
     if 0:
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
@@ -253,6 +255,8 @@ def main():
                     dep_kruskal.append(dependent_variable)
                     statistics_kruskal.append(stat)
                     p_value_kruskal.append(p_value)
+            if p_value<0.1:
+                significant_independent_variables.append(independent_variable)
     # plot_variance(df, 'Education', 'PackageAcceptance')
      
     if 0: #print a LaTeX type table 
@@ -278,23 +282,64 @@ def main():
         stat, p_value = stats.levene(groups[0],groups[1],groups[2])
         print('Levene: stat: ', stat, ' p_value: ', p_value)
 
+    # MANOVA https://www.reneshbedre.com/blog/manova-python.html
     if 0:
-        # MANOVA https://www.reneshbedre.com/blog/manova-python.html
+        
         model = MANOVA.from_formula('CarType + Education ~ FunctionAcceptance', data=df)
         print(model.mv_test()) # Pillai's trace is relevant
         print(model.summary())
 
+    # TUKEY - POST HOC tests for significant ANOVA
     if 1:
+        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         print("post hoc for anova")
-        print("variables: ", indep_kruskal, ", ", dep_kruskal)
-        # POST HOC tests for significant ANOVA
-        df_modified = df[['CarType', 'FunctionAcceptance']]
-        data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
-        X = data.drop(columns=['FunctionAcceptance'])
-        y = data['FunctionAcceptance']
-        X = sm.add_constant(X)
-        model = sm.OLS(y,X).fit()
-        print(model.summary())
+        print("indep: ", significant_independent_variables, "\ndep: ", dependent_variables)
+        iteration = 0
+        for independent_variable in significant_independent_variables:
+            
+            for dependent_variable in dependent_variables:
+                df_modified = df[[independent_variable, dependent_variable]]
+                df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+                groups = []
+                for column_name in df_modified.columns.values:
+                    group = (df_modified[column_name].dropna(how='any').to_list())
+                    if len(group) > 1:
+                        groups.append(group)
+                var_num = len(groups)
+                if var_num == 2:
+                    result = tukey_hsd(groups[0],groups[1])
+                elif var_num == 3:
+                    result = tukey_hsd(groups[0],groups[1],groups[2])
+                elif var_num == 4:
+                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
+                elif var_num == 5:
+                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
+                elif var_num == 6:
+                    result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+                else:
+                    # print("This variable couldn't be printed: " + independent_variable)
+                    continue
+                
+                print(" - ",iteration,". ", independent_variable, " ~ ",dependent_variable)
+                print(result)
+                if iteration in [0,4,6,8,11,14,20,21]:
+                    plot_variance(df, independent_variable, dependent_variable)
+                iteration +=1
+        # interesting relationships
+        
+        if 0: #not used
+            df_modified = df[['CarType', 'FunctionAcceptance']]
+            data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
+            #print(data)
+            X = data.drop(columns=['FunctionAcceptance'])
+            y = data['FunctionAcceptance']
+            X = sm.add_constant(X)
+            tukey = pairwise_tukeyhsd(endog=y, groups=X, alpha=0.05)
+            print(tukey)
+            model = sm.OLS(y,X).fit()
+            print(model.summary())
+
+ 
 
     # POST HOX test for significant MANOVA
 
