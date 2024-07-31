@@ -304,27 +304,19 @@ def main():
         plot_variance(df, geo_variables[1], dependent_variables[1])
 
     # RQ5: role of tangibility
-    # moderation and mediation analyses
+    # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process), 
+
             
     
     # Decision Tree 
+    if 0:
+        X, y = df[['Gender']],df['FunctionAcceptance']
+        clf = tree.DecisionTreeRegressor()
+        clf = clf.fit(X,y)
+        plt.figure()
+        tree.plot_tree(clf)
+        plt.show()
 
-    X, y = df[['Gender']],df['FunctionAcceptance']
-    clf = tree.DecisionTreeRegressor()
-    clf = clf.fit(X,y)
-    plt.figure()
-    tree.plot_tree(clf)
-
-
-
-
-    #plt.show()
-
-
-    # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process), 
-
-
-    
 def privacy_data_cleaning(df):
     # information about the study subject hours
     df.drop('EN01_01', axis=1, inplace=True)
