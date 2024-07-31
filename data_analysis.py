@@ -283,7 +283,7 @@ def main():
     for geo_variable in geo_variables:
         df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
         df.loc[(df[geo_variable] == 276), geo_variable]=1 # Germany code
-        df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech code
+        df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech Republic code
     print("STD for countries")
     for geo_variable in geo_variables:
         for dependent_variable in dependent_variables:
