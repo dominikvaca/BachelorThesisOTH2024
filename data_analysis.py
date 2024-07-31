@@ -251,11 +251,10 @@ def main():
                     # print("This variable couldn't be printed: " + independent_variable)
                     continue
                 #print(' -',dependent_variable, ' stat: ', stat, ' p_value: ', p_value)
-                
-                    indep_kruskal.append(independent_variable)
-                    dep_kruskal.append(dependent_variable)
-                    statistics_kruskal.append(stat)
-                    p_value_kruskal.append(p_value)
+                indep_kruskal.append(independent_variable)
+                dep_kruskal.append(dependent_variable)
+                statistics_kruskal.append(stat)
+                p_value_kruskal.append(p_value)
             if p_value<0.1:
                 significant_independent_variables.append(independent_variable)
     # plot_variance(df, 'Education', 'PackageAcceptance')
@@ -327,7 +326,7 @@ def main():
                 iteration +=1
         # interesting relationships
         
-        if 0: #not used
+        if 0: #not used, not working
             df_modified = df[['CarType', 'FunctionAcceptance']]
             data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
             #print(data)
@@ -340,15 +339,34 @@ def main():
             print(model.summary())
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
-    independent_variables = new_variables
-    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-    print_mean_std_perc(df, independent_variables+dependent_variables)
-    for independent_variable in independent_variables:
-        for dependent_variable in dependent_variables:
-            print(" -") # LAST THING - finish the loops to show the correlations
-            df_modified = df[['CarSubscriptionExp', 'FunctionAcceptance']].dropna(how='any') #how='all' also possible
-            print(stats.pearsonr(df_modified['CarSubscriptionExp'], df_modified['FunctionAcceptance']))
+    if 0:
+        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+        independent_variables = new_variables
         
+        for variable in independent_variables + dependent_variables:
+            print(variable, ", mean: ", df[variable].mean(), ", std: ", df[variable].std())
+        iteration = 0
+        for independent_variable in independent_variables:
+            for dependent_variable in dependent_variables:
+                if independent_variable != dependent_variable:
+                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable) # LAST THING - finish the loops to show the correlations
+                    df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+                    corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
+                    print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+                    iteration += 1
+
+
+    # RQ4: Difference between German and Czech Participants
+    # differences of the groups
+    geo_variables = ['Country', 'Birthplace']
+    for geo_variable in geo_variables:
+        df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3
+        df[geo_variable].replace(276,1,inplace=True)
+        df[geo_variable].replace(203,2,inplace=True)
+
+
+    # differences of attitudes
+            
     
     # Decision Tree 
 
