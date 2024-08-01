@@ -7,6 +7,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.multivariate.manova import MANOVA
 import statsmodels.formula.api as smf
+import statsmodels.genmod.families.links as links
 from sklearn import tree
 from scipy.stats import f_oneway, tukey_hsd
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
@@ -15,7 +16,7 @@ import seaborn as sns
 
 def main():
     print("Data manipulation starts..")
-    df = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_for_python.xlsx", index_col=None)
+    df = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_survey.xlsx", index_col=None)
     original_table_shape = df.shape
     df_description = df.iloc[0]
 
@@ -269,7 +270,7 @@ def main():
         for independent_variable in independent_variables:
             for dependent_variable in dependent_variables:
                 if independent_variable != dependent_variable:
-                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable) # LAST THING - finish the loops to show the correlations
+                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
                     df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
                     corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
                     print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
@@ -278,34 +279,108 @@ def main():
 
     # RQ4: Difference between German and Czech Participants
     # differences of the groups
-    geo_variables = ['Country', 'BirthPlace']
-    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-    for geo_variable in geo_variables:
-        df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
-        df.loc[(df[geo_variable] == 276), geo_variable]=1 # Germany code
-        df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech Republic code
-    print("STD for countries")
-    for geo_variable in geo_variables:
-        for dependent_variable in dependent_variables:
-            print(geo_variable, "~", dependent_variable)
-            for i in range(3):
-                print(i+1, "std:", df.loc[(df[geo_variable] == i+1), dependent_variable].std())
-    print("Levene test for countries") # more robust test than F-test
-    levene_printout(df, dependent_variables, geo_variables)
-    plot_variance(df, 'Country', 'FunctionAcceptance')
-    print("ANOVA for countries")
-    anova_printout(df, geo_variables, dependent_variables)
-    print("Kruskal for countries")
-    print(kruskal_get_results(df, geo_variables, dependent_variables))
-    print("Tukey for countries")
-    tukey_printout(df, geo_variables, dependent_variables)
     if 0:
-        plot_variance(df, geo_variables[1], dependent_variables[0])
-        plot_variance(df, geo_variables[1], dependent_variables[1])
+        geo_variables = ['Country', 'BirthPlace']
+        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+        for geo_variable in geo_variables:
+            df.loc[((df[geo_variable] != 276) & (df[geo_variable] != 203)), geo_variable]=3 # code for other countries
+            df.loc[(df[geo_variable] == 276), geo_variable]=1 # Germany code
+            df.loc[(df[geo_variable] == 203), geo_variable]=2 # Czech Republic code
+        print("STD for countries")
+        for geo_variable in geo_variables:
+            for dependent_variable in dependent_variables:
+                print(geo_variable, "~", dependent_variable)
+                for i in range(3):
+                    print(i+1, "std:", df.loc[(df[geo_variable] == i+1), dependent_variable].std())
+        print("Levene test for countries") # more robust test than F-test
+        levene_printout(df, dependent_variables, geo_variables)
+        plot_variance(df, 'Country', 'FunctionAcceptance')
+        print("ANOVA for countries")
+        anova_printout(df, geo_variables, dependent_variables)
+        print("Kruskal for countries")
+        print(kruskal_get_results(df, geo_variables, dependent_variables))
+        print("Tukey for countries")
+        tukey_printout(df, geo_variables, dependent_variables)
+        if 0:
+            plot_variance(df, geo_variables[1], dependent_variables[0])
+            plot_variance(df, geo_variables[1], dependent_variables[1])
 
-    # RQ5: role of tangibility
+    # RQ5: role of tangibility (and importance)
     # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process), 
+    # https://www.statsmodels.org/stable/generated/statsmodels.stats.mediation.Mediation.html
+    df_tangibility = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_tangibility.xlsx", index_col=None)
+    importance_functions = {'FF01_01': 'ImpFunHUD',
+                            'FF01_02': 'ImpFunWIFI',
+                            'FF01_03': 'ImpFunSpeech',
+                            'FF01_04': 'ImpFunHeatedSeats',
+                            'FF01_05': 'ImpFunDigiRadio',
+                            'FF01_06': 'ImpFunPhoneApp',
+                            'FF01_07': 'ImpFunAutoBeams',
+                            'FF01_08': 'ImpFunMapUpdate',
+                            'FF01_09': 'ImpFunAutopilot',
+                            'FF01_10': 'ImpFunTrafficSign',
+                            'FF01_11': 'ImpFunMotorPower',
+                            'FF01_12': 'ImpFunPredMaintenance',
+                            'FF01_13': 'ImpFunLog',
+                            'FF01_14': 'ImpFunFuelPrices',
+                            'FF01_15': 'ImpFunToll'}
+    acceptance_functions = {'FF03_01': 'AccFunHUD',	
+                            'FF03_02': 'AccFunWIFI',	
+                            'FF03_03': 'AccFunSpeech',	
+                            'FF03_04': 'AccFunHeatedSeats',	
+                            'FF03_05': 'AccFunDigiRadio',	
+                            'FF03_06': 'AccFunPhoneApp',	
+                            'FF03_07': 'AccFunAutoBeams',	
+                            'FF03_08': 'AccFunMapUpdate',	
+                            'FF03_09': 'AccFunAutopilot',	
+                            'FF03_10': 'AccFunTrafficSign',	
+                            'FF03_11': 'AccFunMotorPower',	
+                            'FF03_12': 'AccFunPredMaintenance',	
+                            'FF03_13': 'AccFunLog',	
+                            'FF03_14': 'AccFunFuelPrices',	
+                            'FF03_15': 'AccFunToll'}
+    importance_packages = {'FP01_01': 'ImpPacInfotainment',
+                            'FP01_02': 'ImpPacADAS',
+                            'FP01_03': 'ImpPacNavigation',
+                            'FP01_04': 'ImpPacLighting',
+                            'FP01_05': 'ImpPacRemote',
+                            'FP01_06': 'ImpPacPerformance'}
+    acceptance_packages = {'FP03_01': 'AccPacInfotainment',
+                            'FP03_02': 'AccPacADAS',
+                            'FP03_03': 'AccPacNavigation',
+                            'FP03_04': 'AccPacLighting',
+                            'FP03_05': 'AccPacRemote',
+                            'FP03_06': 'AccPacPerformance'}
+    imp_acc_column_names = [importance_functions, acceptance_functions, importance_packages, acceptance_packages]
+    for column_name in imp_acc_column_names:
+        df.rename(columns=column_name, inplace=True)
+    importance_variables = importance_functions.values()+importance_packages.values()
+    acceptance_variables = acceptance_functions.values()+acceptance_packages.values()
+    for imp, acc in zip(importance_variables, acceptance_variables):
+        print(imp, " ~ ", acc)
+        df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+        corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
+        print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+    print(df_tangibility)
+    independent_variables = 0
+    for variable in independent_variables + dependent_variables:
+        print(variable, ", mean: ", df[variable].mean(), ", std: ", df[variable].std())
+    iteration = 0
+    if 0:
+        for independent_variable in independent_variables:
+            for dependent_variable in dependent_variables:
+                if independent_variable != dependent_variable:
+                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
+                    df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+                    corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
+                    print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+                    iteration += 1
 
+
+    
+    
+
+    
             
     
     # Decision Tree 
