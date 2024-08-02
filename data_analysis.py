@@ -9,13 +9,13 @@ from statsmodels.multivariate.manova import MANOVA
 from statsmodels.stats.mediation import Mediation
 import statsmodels.formula.api as smf
 import statsmodels.genmod.families.links as links
-
 from sklearn import tree
 from scipy.stats import f_oneway, tukey_hsd
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from scipy import stats
 import seaborn as sns
 from pingouin import mediation_analysis
+from pyprocessmacro import Process
 
 def main():
     print("Data manipulation starts..")
@@ -31,7 +31,7 @@ def main():
     df = recode_driving_license(df)
 
     
-    #add needed variables
+    #The survey data includes only items and the according variables have to be calculated 
     new_variables = ['CarInstrumentalPerception',
                      'CarFinancialRisk',
                      'CarSocialValue',
@@ -67,7 +67,7 @@ def main():
              ['FP01_01','FP01_02','FP01_03','FP01_04','FP01_05','FP01_06'],
              ['FP03_01','FP03_02','FP03_03','FP03_04','FP03_05','FP03_06']]
     
-    # demographic variables, 'Age' is calculated elsewhere
+    # renaming of demographic variables, usage of codes would be too
     demographics_continuous = {'CA03_01': 'DailyDrivingKM',
                                'CA03_02': 'WeeklyDrivingKM',
                                'CD17': 'Income',
@@ -99,27 +99,16 @@ def main():
                                 'CD23':'Accommodation'}
     df.rename(columns=demographics_continuous, inplace=True)
     df.rename(columns=demographics_categorical, inplace=True)
-    
-
 
     df = add_variables(df, new_variables, items)
-    print("New variables table: ", df.shape)
+    #print("New variables table: ", df.shape)
+    # show the mean, cronbach's alpha and number of items per new variable
     df_variable_description = describe_variables(df, new_variables, items)
     if 0:
-        print(df_variable_description)
         print(df_variable_description.to_latex(index=False,
-                                            formatters={"name":str.upper},
-                                            float_format="{:.2f}".format))
+                                               formatters={"name":str.upper},
+                                               float_format="{:.2f}".format))
         print(df_variable_description.sort_values('alpha'))
-
-
-    # general attitudes
-
-    
-    # new_var_info = pd.DataFrame({'name': new_variables,'mean': mean,})
-
-    # data analysis
-    # to-do: correlation, anova (Trzebinski), process (Trzebinski), decision tree, regression, cluster analysis?, group identificaiton
 
     # political leaning
     demographic_variables = ['CA01','CA12','CA02','CA03_01','CA03_02','CA04','CA06','CA08_01','CA08_02','CA08_03','CA08_04','CA09_01','CA09_02','CA09_03','CA09_04','CA09_05','CA05_01','CA05_02','CA05_03','CD01','CD04_01','CD08','CD08s','CD19','CD19s','CD14','CD14_08','CD17','CD18_01','CD20_01','CD23','CD23_10','CD24','CD25','CD26','CD26_08','CD27_01','CD30_pts','CD30_rgs','CD30_01']
@@ -143,7 +132,8 @@ def main():
     # cars per driver
     df['CarsPerDriver'] = df['HouseholdCars'].astype(float)/df['HouseholdDrivers'].astype(float)
 
-
+    ### DATA ANALYSIS ###
+    # to-do: process?, decision tree, regression, cluster analysis?, group identificaiton
     
 
     # RQ2: DEMOGRAPHIC ANALYSIS
@@ -263,7 +253,7 @@ def main():
             print(model.summary())
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
-    if 0:
+    if 1:
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         independent_variables = new_variables
         
@@ -273,10 +263,12 @@ def main():
         for independent_variable in independent_variables:
             for dependent_variable in dependent_variables:
                 if independent_variable != dependent_variable:
-                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
+                    
                     df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
                     corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
-                    print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+                    if p_value < 0.1:
+                        print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
+                        print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
                     iteration += 1
 
 
@@ -361,14 +353,14 @@ def main():
     
     # importance -> acceptance
     df_correlation = corr_get_results(df, importance_variables, acceptance_variables)
-    print(df_correlation.sort_values('corr'))
+    #print(df_correlation.sort_values('corr'))
 
     # tangibility -> acceptance
     #print(df_tangibility)
     tangibility_variables = df_tangibility['ID'].to_list()
     tangibility_values = df_tangibility['Tangibility'].to_list()
     for column_name, value in zip(tangibility_variables, tangibility_values):
-        print(column_name, value)
+        #print(column_name, value)
         df[column_name]=value
         
     acceptance_means = []
@@ -381,41 +373,54 @@ def main():
         mean = df[var].mean()
         importance_means.append(mean)
     df_tangibility['Importance'] = importance_means
-    print(df_tangibility)
+    #print(df_tangibility)
     corr, p_value = stats.pearsonr(df_tangibility['Tangibility'], df_tangibility['Acceptance'])
-    print("corr: ", corr, "p-value: ", p_value)
+    #print("corr: ", corr, "p-value: ", p_value)
     corr, p_value = stats.pearsonr(df_tangibility['RealTime'], df_tangibility['Acceptance'])
-    print("corr: ", corr, "p-value: ", p_value)
+    #print("corr: ", corr, "p-value: ", p_value)
     corr, p_value = stats.pearsonr(df_tangibility['Familiarity'], df_tangibility['Acceptance'])
-    print("corr: ", corr, "p-value: ", p_value)
+    #print("corr: ", corr, "p-value: ", p_value)
 
     
     # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process),
     # https://pingouin-stats.org/build/html/generated/pingouin.mediation_analysis.html
     # mediation analysis with pingouin
-    independent_variable = 'Importance'
-    mediation_variable = 'Tangibility'
-    dependent_variable = 'Acceptance'
-    
+    if 0: # no more interesting things in the df_tangibility
+        independent_variable = 'Importance'
+        mediation_variable = 'Familiarity'
+        dependent_variable = 'Acceptance'
+        print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+        statistic_mediation = mediation_analysis(data=df_tangibility, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
+        print(statistic_mediation)
+
+    independent_variable = 'DeownershipOrientation'
+    mediation_variable = 'FODAttitude'
+    dependent_variable = 'PackageAcceptance'
+    df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
     print(independent_variable, "->", mediation_variable, "->", dependent_variable)
-    statistic_mediation = mediation_analysis(data=df_tangibility, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
+    for column in [independent_variable, mediation_variable, dependent_variable]:
+        df_modified[column] = df_modified[column].astype(float)
+    # print(df_modified.dtypes)
+    statistic_mediation = mediation_analysis(data=df_modified, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
     print(statistic_mediation)
 
-    # https://www.statsmodels.org/stable/generated/statsmodels.stats.mediation.Mediation.html
-    # mediation analysis with statsmodels
-    if 0: # works but too long
+    # Process with pyprocessmarco
+    # https://pypi.org/project/PyProcessMacro/
+    if 0: # not yet implemented
+        independent_variables = 'DeownershipOrientation', 'EVAttitude'
+        mediation_variable = 'FODAttitude'
+        dependent_variable = 'PackageAcceptance'
+        df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+        print(independent_variable, "->", mediation_variable, "->", dependent_variable)
 
-        independent_variable = 'Importance'
-        mediation_variable = 'Tangibility'
-        dependent_variable = 'Acceptance'
-        
-        Probit = links.Probit
-        outcome_formula = dependent_variable + ' ~ ' + mediation_variable + ' + ' + independent_variable
-        mediator_formula = mediation_variable + ' ~ ' + independent_variable
-        outcome_model = sm.GLM.from_formula(outcome_formula, df_tangibility, family=sm.families.Binomial(link=Probit()))
-        mediator_model = sm.OLS.from_formula(mediator_formula, data=df_tangibility)
-        med = Mediation(outcome_model, mediator_model, independent_variable, mediation_variable).fit()
-        print(med.summary())
+        process_result = Process(data=df, model=13, x=independent_variable, y=dependent_variable, 
+                                m=mediation_variable,
+                                modval={
+                                    independent_variable: [3,3.5,4]
+                                })
+        print(process_result.summary())
+
+    
 
 def privacy_data_cleaning(df):
     # information about the study subject hours
@@ -478,23 +483,19 @@ def describe_variables(df, new_variables, items):
         alpha=alpha_whole[0]
         alpha = round(alpha,3)
         alphas.append(alpha)
-
     #mean of new variables
     mean = []
     for var in new_variables:
         mean.append(df.loc[:,var].mean())
-
     #number of items
     item_length = []
     for item in items:
         item_length.append(len(item))
-
     new_var_info = pd.DataFrame(
         {'name': new_variables,
          'alpha': alphas,
          'mean': mean,
          'items': item_length
-
          #'items':items
          }
     )
