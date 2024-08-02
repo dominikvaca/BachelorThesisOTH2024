@@ -6,13 +6,16 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.multivariate.manova import MANOVA
+from statsmodels.stats.mediation import Mediation
 import statsmodels.formula.api as smf
 import statsmodels.genmod.families.links as links
+
 from sklearn import tree
 from scipy.stats import f_oneway, tukey_hsd
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from scipy import stats
 import seaborn as sns
+from pingouin import mediation_analysis
 
 def main():
     print("Data manipulation starts..")
@@ -306,8 +309,6 @@ def main():
             plot_variance(df, geo_variables[1], dependent_variables[1])
 
     # RQ5: role of tangibility (and importance)
-    # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process), 
-    # https://www.statsmodels.org/stable/generated/statsmodels.stats.mediation.Mediation.html
     df_tangibility = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_tangibility.xlsx", index_col=None)
     importance_functions = {'FF01_01': 'ImpFunHUD',
                             'FF01_02': 'ImpFunWIFI',
@@ -354,43 +355,71 @@ def main():
     imp_acc_column_names = [importance_functions, acceptance_functions, importance_packages, acceptance_packages]
     for column_name in imp_acc_column_names:
         df.rename(columns=column_name, inplace=True)
-    importance_variables = importance_functions.values()+importance_packages.values()
-    acceptance_variables = acceptance_functions.values()+acceptance_packages.values()
-    for imp, acc in zip(importance_variables, acceptance_variables):
-        print(imp, " ~ ", acc)
-        df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
-        corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
-        print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+
+    importance_variables = list(importance_functions.values())+list(importance_packages.values())
+    acceptance_variables = list(acceptance_functions.values())+list(acceptance_packages.values())
+    
+    # importance -> acceptance
+    df_correlation = corr_get_results(df, importance_variables, acceptance_variables)
+    print(df_correlation.sort_values('corr'))
+
+    # tangibility -> acceptance
+    #print(df_tangibility)
+    tangibility_variables = df_tangibility['ID'].to_list()
+    tangibility_values = df_tangibility['Tangibility'].to_list()
+    for column_name, value in zip(tangibility_variables, tangibility_values):
+        print(column_name, value)
+        df[column_name]=value
+        
+    acceptance_means = []
+    for var in acceptance_variables:
+        mean = df[var].mean()
+        acceptance_means.append(mean)
+    df_tangibility['Acceptance'] = acceptance_means
+    importance_means = []
+    for var in importance_variables:
+        mean = df[var].mean()
+        importance_means.append(mean)
+    df_tangibility['Importance'] = importance_means
     print(df_tangibility)
-    independent_variables = 0
-    for variable in independent_variables + dependent_variables:
-        print(variable, ", mean: ", df[variable].mean(), ", std: ", df[variable].std())
-    iteration = 0
-    if 0:
-        for independent_variable in independent_variables:
-            for dependent_variable in dependent_variables:
-                if independent_variable != dependent_variable:
-                    print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
-                    df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
-                    corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
-                    print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
-                    iteration += 1
-
+    corr, p_value = stats.pearsonr(df_tangibility['Tangibility'], df_tangibility['Acceptance'])
+    print("corr: ", corr, "p-value: ", p_value)
+    corr, p_value = stats.pearsonr(df_tangibility['RealTime'], df_tangibility['Acceptance'])
+    print("corr: ", corr, "p-value: ", p_value)
+    corr, p_value = stats.pearsonr(df_tangibility['Familiarity'], df_tangibility['Acceptance'])
+    print("corr: ", corr, "p-value: ", p_value)
 
     
+    # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process),
+    # https://pingouin-stats.org/build/html/generated/pingouin.mediation_analysis.html
+    # mediation analysis with pingouin
+    independent_variable = 'Importance'
+    mediation_variable = 'Tangibility'
+    dependent_variable = 'Acceptance'
     
+    print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+    statistic_mediation = mediation_analysis(data=df_tangibility, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
+    print(statistic_mediation)
 
+    # https://www.statsmodels.org/stable/generated/statsmodels.stats.mediation.Mediation.html
+    # mediation analysis with statsmodels
+    independent_variable = 'FunctionImportance'
+    mediation_variable = 'Age'
+    dependent_variable = 'FunctionAcceptance'
+    df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+
+    independent_variable = 'Importance'
+    mediation_variable = 'Tangibility'
+    dependent_variable = 'Acceptance'
     
-            
-    
-    # Decision Tree 
-    if 0:
-        X, y = df[['Gender']],df['FunctionAcceptance']
-        clf = tree.DecisionTreeRegressor()
-        clf = clf.fit(X,y)
-        plt.figure()
-        tree.plot_tree(clf)
-        plt.show()
+    print(df_modified)
+    Probit = links.Probit
+    outcome_formula = dependent_variable + ' ~ ' + mediation_variable + ' + ' + independent_variable
+    mediator_formula = mediation_variable + ' ~ ' + independent_variable
+    outcome_model = sm.GLM.from_formula(outcome_formula, df_tangibility, family=sm.families.Binomial(link=Probit()))
+    mediator_model = sm.OLS.from_formula(mediator_formula, data=df_tangibility)
+    med = Mediation(outcome_model, mediator_model, independent_variable, mediation_variable).fit()
+    print(med.summary())
 
 def privacy_data_cleaning(df):
     # information about the study subject hours
@@ -590,6 +619,21 @@ def levene_printout(df, dependent_variables, geo_variables):
             stat, p_value = stats.levene(groups[0],groups[1],groups[2])
             print('Levene: stat: ', stat, ' p_value: ', p_value)
 
+def corr_get_results(df, variables_1, variables_2):
+    correlations = []
+    p_values = []
+    for var1, var2 in zip(variables_1, variables_2):
+        df_modified = df[[var1, var2]].dropna(how='any') #how='all' also possible
+        corr, p_value = stats.pearsonr(df_modified[var1], df_modified[var2])
+        correlations.append(corr)
+        p_values.append(p_value)
+        #print(var1, " ~ ", var2)
+        #print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+    df_correlation = pd.DataFrame({'indep': variables_1,
+                                    'dep': variables_2,
+                                    'corr': correlations,
+                                    'p_value': p_values})  
+    return df_correlation
 
 if __name__ == '__main__':
     main()
