@@ -18,7 +18,7 @@ from pingouin import mediation_analysis
 from pyprocessmacro import Process
 
 def main():
-    print("Data manipulation starts..")
+    print("### Data analysis started")
     df = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_survey.xlsx", index_col=None)
     original_table_shape = df.shape
     df_description = df.iloc[0]
@@ -27,11 +27,11 @@ def main():
 
     df = data_cleaning(df)
     print("Cleaned table: ", df.shape)
-    df = recode_inverted_variables(df)
-    df = recode_driving_license(df)
+    df = recode_inverted_variables(df) # some items had to be inverted to fit the other ones
+    df = recode_driving_license(df) # the order of answers was wrong
 
     
-    #The survey data includes only items and the according variables have to be calculated 
+    #Variable creation - The survey data includes only items and the according variables have to be calculated 
     new_variables = ['CarInstrumentalPerception',
                      'CarFinancialRisk',
                      'CarSocialValue',
@@ -66,8 +66,9 @@ def main():
              ['FF03_01','FF03_02','FF03_03','FF03_04','FF03_05','FF03_06','FF03_07','FF03_08','FF03_09','FF03_10','FF03_11','FF03_12','FF03_13','FF03_14','FF03_15'],
              ['FP01_01','FP01_02','FP01_03','FP01_04','FP01_05','FP01_06'],
              ['FP03_01','FP03_02','FP03_03','FP03_04','FP03_05','FP03_06']]
-    
-    # renaming of demographic variables, usage of codes would be too
+    df = add_variables(df, new_variables, items)
+
+    # Renaming of demographic variables (usage of codes would be too difficult to read)
     demographics_continuous = {'CA03_01': 'DailyDrivingKM',
                                'CA03_02': 'WeeklyDrivingKM',
                                'CD17': 'Income',
@@ -100,9 +101,7 @@ def main():
     df.rename(columns=demographics_continuous, inplace=True)
     df.rename(columns=demographics_categorical, inplace=True)
 
-    df = add_variables(df, new_variables, items)
-    #print("New variables table: ", df.shape)
-    # show the mean, cronbach's alpha and number of items per new variable
+    # New Variables Info - show the mean, cronbach's alpha and number of items per new variable
     df_variable_description = describe_variables(df, new_variables, items)
     if 0:
         print(df_variable_description.to_latex(index=False,
@@ -110,16 +109,16 @@ def main():
                                                float_format="{:.2f}".format))
         print(df_variable_description.sort_values('alpha'))
 
-    # political leaning
     demographic_variables = ['CA01','CA12','CA02','CA03_01','CA03_02','CA04','CA06','CA08_01','CA08_02','CA08_03','CA08_04','CA09_01','CA09_02','CA09_03','CA09_04','CA09_05','CA05_01','CA05_02','CA05_03','CD01','CD04_01','CD08','CD08s','CD19','CD19s','CD14','CD14_08','CD17','CD18_01','CD20_01','CD23','CD23_10','CD24','CD25','CD26','CD26_08','CD27_01','CD30_pts','CD30_rgs','CD30_01']
+    # create variable for political leaning
     df[['Right', 'Libertarian','political_points']] = df['CD30_pts'].str.split(',',expand=True)
     df['Right'] = df['Right'].astype(float)/440
     df['Libertarian'] = df['Libertarian'].astype(float)/480
-    print("Manipulated table: ", df.shape)
-    print("Originally imported table: ", original_table_shape)
+    #print("Manipulated table: ", df.shape)
+    #print("Originally imported table: ", original_table_shape)
     demographic_variables.append('Right')
     demographic_variables.append('Libertarian')
-    # age
+    # calculation of age from year of birthe
     pd.to_numeric(df['CD04_01'], errors='coerce')
     for index, row in df.iterrows():
         tmp = df.loc[index, 'CD04_01']
@@ -132,21 +131,107 @@ def main():
     # cars per driver
     df['CarsPerDriver'] = df['HouseholdCars'].astype(float)/df['HouseholdDrivers'].astype(float)
 
+
+    ### DESCRIPTIVE STATISTICS ###
+    #df.to_latex(index=False, formatters={"name":str.upper}, float_format="{:.2f}".format)
+    #LATEX - DescriptiveStatContinuous
+    if 0:
+        df_descriptive_continuous = pd.DataFrame([{'Variable': 'Age',
+                                                'Obs': len(df['Age']),
+                                                'Mean': df['Age'].mean(),
+                                                'Std. Dev.': df['Age'].std(),
+                                                'Min': df['Age'].min(),
+                                                'Max': df['Age'].max()}])
+        
+        latex_table_title = 'Descriptive statistics of continuous variables'
+        latex_table_note = 'Note'
+        latex_table_name = 'DescriptiveStatContinuous'
+        latex_table = df_descriptive_continuous.to_latex(index=False, float_format="{:.2f}".format, bold_rows=True)
+        latex_table = latex_table.split('\n',1)[1]
+        latex_table = latex_table[:-14]
+        latex_table = ("\\begin{table}[!h]\n" + ""
+        "\\begin{center}\n" +
+        "\\begin{threeparttable}\n" +
+            "\\label{"+latex_table_name+"}\n" +
+            "\\caption{\\textit{" + latex_table_title + "}}\n" +
+            "\\begin{tabularx}{\\textwidth}{X X X X X X}\n" +
+                latex_table + 
+            "\\end{tabularx}\n"+
+            "\\begin{tablenotes}\n"+
+                "\\small\n"+
+                "\\item \\textit{Note} " + latex_table_note + "\n"+
+            "\\end{tablenotes}\n"+
+        "\\end{threeparttable}\n"+
+        "\\end{center}\n"+
+        "\\end{table}\n")
+        print(latex_table)
+
+    #LATEX - DescriptiveStatCategorical
+    #driving license, gender, cartype, education, country, accommodation, ses, income, carsubexp, FODexp
+    if 0:
+        df_codebook = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_codebook.xlsx", index_col=None)
+        #RESULT: variable, group, freq., percent, cum
+        categorical_variables = ['Gender', 'CarType', 'Education', 'Country', 'Accommodation', 'CarSubscriptionExp', 'FODExp']
+        codes_to_values = demographics_continuous
+        codes_to_values.update(demographics_categorical)
+        latex_table_title = 'Descriptive statistics of categorical variables'
+        latex_table_note = 'Note'
+        latex_table_name = 'DescriptiveStatCategorical'
+        latex_rows = ("\\begin{table}[!h]\n" + ""
+                    "\\begin{center}\n" +
+                    "\\begin{threeparttable}\n" +
+                    "\\label{"+latex_table_name+"}\n" +
+                    "\\caption{\\textit{" + latex_table_title + "}}\n")
+        latex_rows += "\\begin{tabularx}{\\textwidth}{X X c c}\n" + "\\hline\n" + "Variable & Group & Frequency & Precentage\\\\" + "\\hline\n"
+        for var in categorical_variables:
+            code = list(codes_to_values.keys())[list(codes_to_values.values()).index(var)]
+            frequency = df[var].value_counts()
+            df_variable =pd.DataFrame({'GroupNr': frequency.index, 'Frequency': frequency.values})
+            df_variable['Percentage']=(df_variable['Frequency']/len(df))*100
+            df_variable = df_variable.sort_values('GroupNr')
+            df_variable['Cumulative'] = df_variable['Percentage'].cumsum()
+            df_variable['Percentage']=(df_variable['Percentage']).round(1)
+            df_variable['Cumulative'] = df_variable['Cumulative'].round(1)
+            df_codebook_group = df_codebook.loc[df_codebook['Variable']== code]
+            #print(df_codebook_group)
+            df_variable['Group'] = df_variable['GroupNr'].map(dict(zip(df_codebook_group['Response Code'], df_codebook_group['Response Label'])))
+            df_variable['Group'] = df_variable['Group'].replace('Other:','Other')
+            latex_rows += ("\\multirow{{" + str(len(df_variable)) + "}}{{10em}}{{" + var + "}}")
+            for index, row in df_variable.iterrows():
+                latex_rows += (" & " + row['Group'] + " & " + str(row['Frequency']) + " & " + str(row['Percentage'])+ "\\%\\\\\n")
+            #print(df_variable)
+            if var != categorical_variables[-1]:
+                latex_rows += "\\\\\n"
+        latex_rows += "\\hline\n" + "\\end{tabularx}\n"#+ "\\end{center}\n"
+        latex_rows += ("\\begin{tablenotes}\n"+
+                            "\\small\n"+
+                            "\\item \\textit{Note} " + latex_table_note + "\n"+
+                        "\\end{tablenotes}\n"+
+                    "\\end{threeparttable}\n"+
+                    "\\end{center}\n"+
+                    "\\end{table}\n")
+        print(latex_rows)
+
+
+
     ### DATA ANALYSIS ###
     # to-do: process?, decision tree, regression, cluster analysis?, group identificaiton
     
+    # RQ1 - is going to be done mainly in Excel
 
     # RQ2: DEMOGRAPHIC ANALYSIS
-    if 0:
-        print_mean_std_perc(df,['Age', 'Gender', 'CarSubscriptionExp','FODExp','DrivingLicense','PurchaseExp','CitySize','CityDistance'])
+    # print the main statistical descriptors for some numerical values
 
-    # correlation analysis
+    #print_mean_std_perc(df,['Age', 'Gender', 'CarSubscriptionExp','FODExp','DrivingLicense','PurchaseExp','CitySize','CityDistance'])
+
+    # what are the minimal correlation values for different 
     alphas = [0.1,0.05,0.01]
     for alpha in alphas:
         t_value=stats.t.ppf(1-(alpha/2),len(df.index))
         min_significant_correlation = (1/(((len(df.index)-2)/t_value**2)-1))**(1/2)
         print(alpha, " t_val: ", t_value, " sig corr: ", min_significant_correlation)
 
+    # correlation analysis - for continuous/ordinal variables
     demographic_correlation_list = ['Age', 'Income', 'SES', 'Right', 'Libertarian', 'CitySize', 'CityDistance']
     car_usage_correlation_list = ['DailyDrivingKM', 'WeeklyDrivingKM', 'CarsPerDriver', 'HouseholdCars', 'HouseholdDrivers', 'CarSubscriptionExp', 'FODExp']
     correlation_df = df[demographic_correlation_list+['FunctionAcceptance', 'PackageAcceptance']]
@@ -177,11 +262,14 @@ def main():
         plt.xlabel("Age")
         plt.ylabel("Acceptance of functions-on-demand")
         plt.show()
+
+    dependent_variables = ['FunctionAcceptance'] * len(demographic_correlation_list)
+    #print(corr_get_results(df, demographic_correlation_list, dependent_variables))
     
 
     #categorical variables
     independent_variables = list(demographics_categorical.values())
-    independent_variables.remove('Culture')
+    independent_variables.remove('Culture') # not yet implemented
     dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
     #plot_variance(df, 'CarType', 'FunctionAcceptance')
@@ -205,13 +293,8 @@ def main():
         print("Kruskal-Wallis Test")
         df_kruskal = kruskal_get_results(df, independent_variables, dependent_variables)
         print(df_kruskal)
-    if 0: #print a LaTeX type table 
-        print(df_kruskal.to_latex(index=False,
-                                formatters={"name":str.upper},
-                                float_format="{:.2f}".format))
-
-    # Mann-Whitney U test - returns NAN 
-    # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided')) #other alternative: greater
+    #print a LaTeX type table 
+    #print(df_kruskal.to_latex(index=False, formatters={"name":str.upper}, float_format="{:.2f}".format))
     
     # Levene Test
     if 0:
@@ -253,7 +336,7 @@ def main():
             print(model.summary())
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
-    if 1:
+    if 0:
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         independent_variables = new_variables
         
@@ -397,12 +480,12 @@ def main():
     mediation_variable = 'FODAttitude'
     dependent_variable = 'PackageAcceptance'
     df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
-    print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+    #print(independent_variable, "->", mediation_variable, "->", dependent_variable)
     for column in [independent_variable, mediation_variable, dependent_variable]:
         df_modified[column] = df_modified[column].astype(float)
     # print(df_modified.dtypes)
     statistic_mediation = mediation_analysis(data=df_modified, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
-    print(statistic_mediation)
+    #print(statistic_mediation)
 
     # Process with pyprocessmarco
     # https://pypi.org/project/PyProcessMacro/
@@ -617,19 +700,26 @@ def levene_printout(df, dependent_variables, geo_variables):
             print('Levene: stat: ', stat, ' p_value: ', p_value)
 
 def corr_get_results(df, variables_1, variables_2):
-    correlations = []
-    p_values = []
+    pear_correlations = []
+    pear_p_values = []
+    kend_correlations = []
+    kend_p_values = []
     for var1, var2 in zip(variables_1, variables_2):
         df_modified = df[[var1, var2]].dropna(how='any') #how='all' also possible
         corr, p_value = stats.pearsonr(df_modified[var1], df_modified[var2])
-        correlations.append(corr)
-        p_values.append(p_value)
+        pear_correlations.append(corr)
+        pear_p_values.append(p_value)
+        corr, p_value = stats.kendalltau(df_modified[var1], df_modified[var2])
+        kend_correlations.append(corr)
+        kend_p_values.append(p_value)
         #print(var1, " ~ ", var2)
         #print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
     df_correlation = pd.DataFrame({'indep': variables_1,
                                     'dep': variables_2,
-                                    'corr': correlations,
-                                    'p_value': p_values})  
+                                    'pear corr': pear_correlations,
+                                    'pear p_value': pear_p_values,
+                                    'kend corr': kend_correlations,
+                                    'kend p_value': kend_p_values})  
     return df_correlation
 
 if __name__ == '__main__':

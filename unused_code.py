@@ -14,3 +14,7 @@ outcome_model = sm.GLM.from_formula(outcome_formula, df_tangibility, family=sm.f
 mediator_model = sm.OLS.from_formula(mediator_formula, data=df_tangibility)
 med = Mediation(outcome_model, mediator_model, independent_variable, mediation_variable).fit()
 print(med.summary())
+
+
+# Mann-Whitney U test - returns NAN 
+    # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided'))
