@@ -102,12 +102,32 @@ def main():
     df.rename(columns=demographics_categorical, inplace=True)
 
     # New Variables Info - show the mean, cronbach's alpha and number of items per new variable
-    df_variable_description = describe_variables(df, new_variables, items)
-    if 0:
-        print(df_variable_description.to_latex(index=False,
-                                               formatters={"name":str.upper},
-                                               float_format="{:.2f}".format))
-        print(df_variable_description.sort_values('alpha'))
+    df_variable_description = cronbach_get_results(df, new_variables, items)
+    df_variable_description = df_variable_description.sort_values("Cronbach's Alpha")
+    if 1:
+        #print(df_variable_description.sort_values('alpha'))
+        latex_table_title = "Cronbach's alpha of variables"
+        latex_table_note = 'Note'
+        latex_table_name = 'CronbachVariables'
+        latex_table = df_variable_description.to_latex(index=False, float_format="{:.2f}".format, bold_rows=True)
+        latex_table = latex_table.split('\n',1)[1]
+        latex_table = latex_table[:-14]
+        latex_table = ("\\begin{table}[!h]\n" + ""
+        "\\begin{center}\n" +
+        "\\begin{threeparttable}\n" +
+            "\\label{"+latex_table_name+"}\n" +
+            "\\caption{\\textit{" + latex_table_title + "}}\n" +
+            "\\begin{tabularx}{\\textwidth}{X c c c}\n" +
+                latex_table + 
+            "\\end{tabularx}\n"+
+            "\\begin{tablenotes}\n"+
+                "\\small\n"+
+                "\\item \\textit{Note} " + latex_table_note + "\n"+
+            "\\end{tablenotes}\n"+
+        "\\end{threeparttable}\n"+
+        "\\end{center}\n"+
+        "\\end{table}\n")
+        print(latex_table)
 
     demographic_variables = ['CA01','CA12','CA02','CA03_01','CA03_02','CA04','CA06','CA08_01','CA08_02','CA08_03','CA08_04','CA09_01','CA09_02','CA09_03','CA09_04','CA09_05','CA05_01','CA05_02','CA05_03','CD01','CD04_01','CD08','CD08s','CD19','CD19s','CD14','CD14_08','CD17','CD18_01','CD20_01','CD23','CD23_10','CD24','CD25','CD26','CD26_08','CD27_01','CD30_pts','CD30_rgs','CD30_01']
     # create variable for political leaning
@@ -554,7 +574,7 @@ def add_variables(df, new_variables, items):
         i+=1
     return df
 
-def describe_variables(df, new_variables, items):
+def cronbach_get_results(df, new_variables, items):
     #Cronbach's Alpha https://statisticalpoint.com/cronbachs-alpha-in-python/
     alphas = []
     for item in items:
@@ -575,10 +595,10 @@ def describe_variables(df, new_variables, items):
     for item in items:
         item_length.append(len(item))
     new_var_info = pd.DataFrame(
-        {'name': new_variables,
-         'alpha': alphas,
-         'mean': mean,
-         'items': item_length
+        {'Variable': new_variables,
+         "Cronbach's Alpha": alphas,
+         'Mean': mean,
+         'No. of Items': item_length
          #'items':items
          }
     )
