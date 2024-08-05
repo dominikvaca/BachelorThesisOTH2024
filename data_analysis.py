@@ -317,18 +317,43 @@ def main():
     #print(independent_variables)
     RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
     PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
-    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-    if 0:
+    dependent_variables = ['FODFinancialAppeal','FODAttitude','FunctionAcceptance', 'PackageAcceptance']
+    if 1:
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
             independent_variables.remove(var)
     if 1:
         print("Kruskal-Wallis Test")
         df_kruskal = kruskal_get_results(df, independent_variables, dependent_variables)
+        pd.set_option('display.max_rows', 68)
         print(df_kruskal)
     #print a LaTeX type table 
     #print(df_kruskal.to_latex(index=False, formatters={"name":str.upper}, float_format="{:.2f}".format))
     
+    df_kruskal_significant = df_kruskal.loc[df_kruskal['p_value'] < 0.1]
+    latex_table_title = 'Kurskal-Wallis Test Results'
+    latex_table_note = 'Note'
+    latex_table_name = 'KruskalWallisTable'
+    latex_table = df_kruskal_significant.to_latex(index=False, float_format="{:.4f}".format, bold_rows=True)
+    latex_table = latex_table.split('\n',1)[1]
+    latex_table = latex_table[:-14]
+    latex_table = ("\\begin{table}[!h]\n" + ""
+    "\\begin{center}\n" +
+    "\\begin{threeparttable}\n" +
+        "\\label{"+latex_table_name+"}\n" +
+        "\\caption{\\textit{" + latex_table_title + "}}\n" +
+        "\\begin{tabularx}{\\textwidth}{X X c c}\n" +
+            latex_table + 
+        "\\end{tabularx}\n"+
+        "\\begin{tablenotes}\n"+
+            "\\small\n"+
+            "\\item \\textit{Note} " + latex_table_note + "\n"+
+        "\\end{tablenotes}\n"+
+    "\\end{threeparttable}\n"+
+    "\\end{center}\n"+
+    "\\end{table}\n")
+    print(latex_table)
+
     # Levene Test - use only for NATIONALITY
     if 0:
         df_modified = df[['CarType', 'FunctionAcceptance']]
@@ -356,17 +381,16 @@ def main():
         tukey_printout(df, significant_independent_variables, dependent_variables)
         # interesting relationships
         
-        if 0: #not used, not working
-            df_modified = df[['CarType', 'FunctionAcceptance']]
-            data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
-            #print(data)
-            X = data.drop(columns=['FunctionAcceptance'])
-            y = data['FunctionAcceptance']
-            X = sm.add_constant(X)
-            tukey = pairwise_tukeyhsd(endog=y, groups=X, alpha=0.05)
-            print(tukey)
-            model = sm.OLS(y,X).fit()
-            print(model.summary())
+        
+
+    if 0:
+        indep = 'DrivingLicense'
+        dep = 'FunctionAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.show()
+    
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
     if 0:
@@ -688,6 +712,7 @@ def kruskal_get_results(df, independent_variables, dependent_variables):
                                     'dependent_var':dep_kruskal,
                                     'stat':statistics_kruskal,
                                     'p_value':p_value_kruskal})
+    df_kruskal = df_kruskal.sort_values('p_value')
     return df_kruskal
 
 def tukey_printout(df, independent_variables, dependent_variables):
