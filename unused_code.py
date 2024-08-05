@@ -18,3 +18,17 @@ print(med.summary())
 
 # Mann-Whitney U test - returns NAN 
     # print('Mann-Whitney: ', stats.mannwhitneyu(x=df['Age'], y=df['FunctionAcceptance'], alternative = 'two-sided'))
+
+
+# regression with categorical independent variable
+#not used, not working
+df_modified = df[['CarType', 'FunctionAcceptance']]
+data = pd.get_dummies(df_modified, columns=['CarType'], drop_first=False, dtype=float)
+#print(data)
+X = data.drop(columns=['FunctionAcceptance'])
+y = data['FunctionAcceptance']
+X = sm.add_constant(X)
+tukey = pairwise_tukeyhsd(endog=y, groups=X, alpha=0.05)
+print(tukey)
+model = sm.OLS(y,X).fit()
+print(model.summary())
