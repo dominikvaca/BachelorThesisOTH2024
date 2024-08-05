@@ -330,29 +330,31 @@ def main():
     #print a LaTeX type table 
     #print(df_kruskal.to_latex(index=False, formatters={"name":str.upper}, float_format="{:.2f}".format))
     
-    df_kruskal_significant = df_kruskal.loc[df_kruskal['p_value'] < 0.1]
-    latex_table_title = 'Kurskal-Wallis Test Results'
-    latex_table_note = 'Note'
-    latex_table_name = 'KruskalWallisTable'
-    latex_table = df_kruskal_significant.to_latex(index=False, float_format="{:.4f}".format, bold_rows=True)
-    latex_table = latex_table.split('\n',1)[1]
-    latex_table = latex_table[:-14]
-    latex_table = ("\\begin{table}[!h]\n" + ""
-    "\\begin{center}\n" +
-    "\\begin{threeparttable}\n" +
-        "\\label{"+latex_table_name+"}\n" +
-        "\\caption{\\textit{" + latex_table_title + "}}\n" +
-        "\\begin{tabularx}{\\textwidth}{X X c c}\n" +
-            latex_table + 
-        "\\end{tabularx}\n"+
-        "\\begin{tablenotes}\n"+
-            "\\small\n"+
-            "\\item \\textit{Note} " + latex_table_note + "\n"+
-        "\\end{tablenotes}\n"+
-    "\\end{threeparttable}\n"+
-    "\\end{center}\n"+
-    "\\end{table}\n")
-    print(latex_table)
+    # LATEX - significant kruskal table
+    if 0: #significant kruskal
+        df_kruskal_significant = df_kruskal.loc[df_kruskal['p_value'] < 0.1]
+        latex_table_title = 'Kurskal-Wallis Test Results'
+        latex_table_note = 'Note'
+        latex_table_name = 'KruskalWallisTable'
+        latex_table = df_kruskal_significant.to_latex(index=False, float_format="{:.4f}".format, bold_rows=True)
+        latex_table = latex_table.split('\n',1)[1]
+        latex_table = latex_table[:-14]
+        latex_table = ("\\begin{table}[!h]\n" + ""
+        "\\begin{center}\n" +
+        "\\begin{threeparttable}\n" +
+            "\\label{"+latex_table_name+"}\n" +
+            "\\caption{\\textit{" + latex_table_title + "}}\n" +
+            "\\begin{tabularx}{\\textwidth}{X X c c}\n" +
+                latex_table + 
+            "\\end{tabularx}\n"+
+            "\\begin{tablenotes}\n"+
+                "\\small\n"+
+                "\\item \\textit{Note} " + latex_table_note + "\n"+
+            "\\end{tablenotes}\n"+
+        "\\end{threeparttable}\n"+
+        "\\end{center}\n"+
+        "\\end{table}\n")
+        print(latex_table)
 
     # Levene Test - use only for NATIONALITY
     if 0:
@@ -379,9 +381,12 @@ def main():
         print("post hoc for anova")
         print("indep: ", significant_independent_variables, "\ndep: ", dependent_variables)
         tukey_printout(df, significant_independent_variables, dependent_variables)
-        # interesting relationships
         
-        
+    if 1:
+        df_kruskal_significant = df_kruskal.loc[df_kruskal['p_value'] < 0.1]
+        print(df_kruskal_significant)
+        for var1, var2 in zip(df_kruskal_significant['independent_var'], df_kruskal_significant['dependent_var']):
+            tukey_single_printout(df, var1, var2)
 
     if 0:
         indep = 'DrivingLicense'
@@ -391,6 +396,75 @@ def main():
         plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
         plt.show()
     
+    if 0:
+        plt.figure()
+        indep = 'DrivingLicense'
+        dep = 'FunctionAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'DrivingLicense'
+        dep = 'PackageAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'DrivingLicense'
+        dep = 'FODFinancialAppeal'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.show()
+
+        plt.figure()
+        indep = 'Education'
+        dep = 'FODAttitude'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'Education'
+        dep = 'FODFinancialAppeal'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'Education'
+        dep = 'PackageAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.show()
+
+        plt.figure()
+        indep = 'PurchaseExp'
+        dep = 'FODFinancialAppeal'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'PurchaseExp'
+        dep = 'PackageAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.show()
+
+    if 1:
+        plt.figure()
+        indep = 'CarType'
+        dep = 'FODFinancialAppeal'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.figure()
+        indep = 'CarType'
+        dep = 'FODAttitude'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
+        plt.show()
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
     if 0:
@@ -744,6 +818,31 @@ def tukey_printout(df, independent_variables, dependent_variables):
             print(result)
                 #plot_variance(df, independent_variable, dependent_variable)
             iteration +=1
+
+def tukey_single_printout(df, independent_variable, dependent_variable):
+    df_modified = df[[independent_variable, dependent_variable]]
+    df_modified = df_modified.pivot(columns=independent_variable, values=dependent_variable)
+    groups = []
+    for column_name in df_modified.columns.values:
+        group = (df_modified[column_name].dropna(how='any').to_list())
+        if len(group) > 1:
+            groups.append(group)
+    var_num = len(groups)
+    print(independent_variable, " ~ ",dependent_variable)
+    if var_num == 2:
+        result = tukey_hsd(groups[0],groups[1])
+    elif var_num == 3:
+        result = tukey_hsd(groups[0],groups[1],groups[2])
+    elif var_num == 4:
+        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3])
+    elif var_num == 5:
+        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4])
+    elif var_num == 6:
+        result = tukey_hsd(groups[0],groups[1],groups[2],groups[3],groups[4],groups[5])
+    else:
+        print("This variable couldn't be printed: " + independent_variable)
+    print(result)
+        #plot_variance(df, independent_variable, dependent_variable)
 
 def levene_printout(df, dependent_variables, geo_variables):
     for geo_variable in geo_variables:
