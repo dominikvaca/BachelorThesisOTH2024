@@ -16,6 +16,7 @@ from scipy import stats
 import seaborn as sns
 from pingouin import mediation_analysis
 from pyprocessmacro import Process
+import seaborn
 
 def main():
     print("### Data analysis started")
@@ -26,7 +27,6 @@ def main():
     df = privacy_data_cleaning(df)
 
     df = data_cleaning(df)
-    print("Cleaned table: ", df.shape)
     df = recode_inverted_variables(df) # some items had to be inverted to fit the other ones
     df = recode_driving_license(df) # the order of answers was wrong
 
@@ -101,10 +101,11 @@ def main():
     df.rename(columns=demographics_continuous, inplace=True)
     df.rename(columns=demographics_categorical, inplace=True)
 
+    # LATEX - Cronbach's alpha
     # New Variables Info - show the mean, cronbach's alpha and number of items per new variable
     df_variable_description = cronbach_get_results(df, new_variables, items)
     df_variable_description = df_variable_description.sort_values("Cronbach's Alpha")
-    if 1:
+    if 0:
         #print(df_variable_description.sort_values('alpha'))
         latex_table_title = "Cronbach's alpha of variables"
         latex_table_note = 'Note'
@@ -241,10 +242,8 @@ def main():
 
     # RQ2: DEMOGRAPHIC ANALYSIS
     # print the main statistical descriptors for some numerical values
-
     #print_mean_std_perc(df,['Age', 'Gender', 'CarSubscriptionExp','FODExp','DrivingLicense','PurchaseExp','CitySize','CityDistance'])
-
-    # what are the minimal correlation values for different 
+    # what are the minimal correlation values for different significance levels
     alphas = [0.1,0.05,0.01]
     for alpha in alphas:
         t_value=stats.t.ppf(1-(alpha/2),len(df.index))
@@ -254,11 +253,11 @@ def main():
     # correlation analysis - for continuous/ordinal variables
     demographic_correlation_list = ['Age', 'Income', 'SES', 'Right', 'Libertarian', 'CitySize', 'CityDistance']
     car_usage_correlation_list = ['DailyDrivingKM', 'WeeklyDrivingKM', 'CarsPerDriver', 'HouseholdCars', 'HouseholdDrivers', 'CarSubscriptionExp', 'FODExp']
-    correlation_df = df[demographic_correlation_list+['FunctionAcceptance', 'PackageAcceptance']]
+    correlation_df = df[demographic_correlation_list+['FODFinancialAppeal','FODAttitude','FunctionAcceptance', 'PackageAcceptance']]
     #print(correlation_df.corr())
     #plt.matshow(correlation_df.corr())
     #plt.show()
-    correlation_df = df[car_usage_correlation_list+['FunctionAcceptance', 'PackageAcceptance']]
+    correlation_df = df[car_usage_correlation_list+['FODFinancialAppeal','FODAttitude', 'FunctionAcceptance', 'PackageAcceptance']]
     #print(correlation_df.corr())
     #plt.matshow(correlation_df.corr())
     #plt.show()
@@ -266,15 +265,6 @@ def main():
         print("['CarSubscriptionExp', 'FunctionAcceptance']")
         df_modified = df[['CarSubscriptionExp', 'FunctionAcceptance']].dropna(how='any') #how='all' also possible
         print(stats.pearsonr(df_modified['CarSubscriptionExp'], df_modified['FunctionAcceptance']))
-        print("['CarSubscriptionExp', 'PackageAcceptance']")
-        df_modified = df[['CarSubscriptionExp', 'PackageAcceptance']].dropna(how='any') #how='all' also possible
-        print(stats.pearsonr(df_modified['CarSubscriptionExp'], df_modified['PackageAcceptance']))
-        print("['Libertarian', 'FunctionAcceptance']")
-        df_modified = df[['Libertarian', 'FunctionAcceptance']].dropna(how='any') #how='all' also possible
-        print(stats.pearsonr(df_modified['Libertarian'], df_modified['FunctionAcceptance']))
-        print("['SES', 'PackageAcceptance']")
-        df_modified = df[['SES', 'PackageAcceptance']].dropna(how='any') #how='all' also possible
-        print(stats.pearsonr(df_modified['SES'], df_modified['PackageAcceptance']))
 
     if 0:
         plt.plot('Age', 'FunctionAcceptance', data=df, marker='o', linewidth=0)
@@ -283,22 +273,45 @@ def main():
         plt.ylabel("Acceptance of functions-on-demand")
         plt.show()
 
-    dependent_variables = ['FunctionAcceptance'] * len(demographic_correlation_list)
-    #print(corr_get_results(df, demographic_correlation_list, dependent_variables))
+    correlation_list = ['Age', 'Income', 'SES', 'Right', 'Libertarian', 'CitySize', 'CityDistance','DailyDrivingKM', 'WeeklyDrivingKM', 'CarsPerDriver', 'HouseholdCars', 'HouseholdDrivers', 'CarSubscriptionExp', 'FODExp']
+    for var in ['FODFinancialAppeal','FODAttitude', 'FunctionAcceptance', 'PackageAcceptance']:
+        dependent_variables = [var] * len(correlation_list)
+        #pearson and kendal correlation
+        #print(corr_get_results(df, correlation_list, dependent_variables))
+    if 0: # nice variation plot
+        indep = 'CarSubscriptionExp'
+        dep = 'FunctionAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel('How often do you use a subscription in a car?\n 1: Never, 2: Rarely, 3: Sometimes, 4: Often')
+        plt.show()
+
+    if 0:
+        # Mediation regression analysis
+        independent_variable = 'CarSubscriptionExp'
+        mediation_variable = 'FODAttitude'
+        dependent_variable = 'FunctionAcceptance'
+        df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+        #print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+        for column in [independent_variable, mediation_variable, dependent_variable]:
+            df_modified[column] = df_modified[column].astype(float)
+        # print(df_modified.dtypes)
+        statistic_mediation = mediation_analysis(data=df_modified, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
+        #print(statistic_mediation)
     
 
     #categorical variables
     independent_variables = list(demographics_categorical.values())
     independent_variables.remove('Culture') # not yet implemented
-    dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+    dependent_variables = ['FODFinancialAppeal','FODAttitude','FunctionAcceptance', 'PackageAcceptance']
     # ANOVA analysis https://www.reneshbedre.com/blog/anova.html?utm_content=cmp-true
     #plot_variance(df, 'CarType', 'FunctionAcceptance')
     if 0:
         anova_printout(df, independent_variables, dependent_variables)
         # 'CarType ~ PackageAcceptance' 0.068238
-        # 'RideTypeShopping ~ FunctionAcceptance' 0.074672
-        # PurchasePrioFunctions ~ PackageAcceptance 0.062608
-            
+        # Driving license ~ all
+    
+    #ANCOVA?
 
     # Kruskal-Wallis Test - non-parametric equivalent of one-way ANOVA
     #print(independent_variables)
@@ -309,14 +322,14 @@ def main():
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
             independent_variables.remove(var)
-    if 0:
+    if 1:
         print("Kruskal-Wallis Test")
         df_kruskal = kruskal_get_results(df, independent_variables, dependent_variables)
         print(df_kruskal)
     #print a LaTeX type table 
     #print(df_kruskal.to_latex(index=False, formatters={"name":str.upper}, float_format="{:.2f}".format))
     
-    # Levene Test
+    # Levene Test - use only for NATIONALITY
     if 0:
         df_modified = df[['CarType', 'FunctionAcceptance']]
         #df_modified = df_modified.groupby('CarType')['FunctionAcceptance'].apply(list).reset_index()
@@ -629,12 +642,13 @@ def anova_printout(df, independent_variables, dependent_variables):
         df[independent_variable]=pd.to_numeric(df[independent_variable], errors='coerce')
         for dependent_variable in dependent_variables:
             relationship = independent_variable + " ~ " + dependent_variable
-            print("'"+relationship+"'")
             df_modified = df[[independent_variable, dependent_variable]]
             df_modified = df_modified.dropna(how='any') #how='all' also possible
             model = ols(formula=relationship, data=df_modified).fit()
             anova_table = sm.stats.anova_lm(model, typ=2)
-            print(anova_table)
+            if anova_table['PR(>F)'].iloc[0]<0.10:
+                print("'"+relationship+"'")
+                print(anova_table)
 
 def kruskal_get_results(df, independent_variables, dependent_variables):
     indep_kruskal = []
@@ -726,6 +740,8 @@ def corr_get_results(df, variables_1, variables_2):
     kend_p_values = []
     for var1, var2 in zip(variables_1, variables_2):
         df_modified = df[[var1, var2]].dropna(how='any') #how='all' also possible
+        df_modified = df_modified.astype(float)
+        #print("var1:",df_modified[var1], "var2:", df_modified[var2])
         corr, p_value = stats.pearsonr(df_modified[var1], df_modified[var2])
         pear_correlations.append(corr)
         pear_p_values.append(p_value)
