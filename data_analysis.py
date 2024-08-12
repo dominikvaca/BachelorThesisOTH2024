@@ -584,7 +584,7 @@ def main():
 
     # RQ4: Difference between German and Czech Participants
     # differences of the groups
-    if 1:
+    if 0:
         geo_variables = ['Country', 'BirthPlace']
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         for geo_variable in geo_variables:
@@ -677,6 +677,8 @@ def main():
     for column_name, value in zip(tangibility_variables, tangibility_values):
         #print(column_name, value)
         df[column_name]=value
+
+    
         
     acceptance_means = []
     for var in acceptance_variables:
@@ -696,13 +698,30 @@ def main():
     corr, p_value = stats.pearsonr(df_tangibility['Familiarity'], df_tangibility['Acceptance'])
     #print("corr: ", corr, "p-value: ", p_value)
 
+    # CORRELATION: tangibility -> acceptance
+    print(df_tangibility)
+    df_modified = df_tangibility[['Tangibility', 'Acceptance']].dropna(how='any') #how='all' also possible
+    df_modified = df_modified.astype(float)
+    #print("var1:",df_modified[var1], "var2:", df_modified[var2])
+    corr, p_value = stats.pearsonr(df_modified['Tangibility'], df_modified['Acceptance'])
+    print('pearson corr: ', corr, 'p-val:', p_value)
+    corr, p_value = stats.kendalltau(df_modified['Tangibility'], df_modified['Acceptance'])
+    print('kendall corr: ', corr, 'p-val:', p_value)
+
     
     # regressions - mediation analysis (pingouin, statsmodels), moderation analysis (statsmodels, process),
     # https://pingouin-stats.org/build/html/generated/pingouin.mediation_analysis.html
     # mediation analysis with pingouin
-    if 0: # no more interesting things in the df_tangibility
+    if 1: # no more interesting things in the df_tangibility
         independent_variable = 'Importance'
         mediation_variable = 'Familiarity'
+        dependent_variable = 'Acceptance'
+        print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+        statistic_mediation = mediation_analysis(data=df_tangibility, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
+        print(statistic_mediation)
+
+        independent_variable = 'Importance'
+        mediation_variable = 'Tangibility'
         dependent_variable = 'Acceptance'
         print(independent_variable, "->", mediation_variable, "->", dependent_variable)
         statistic_mediation = mediation_analysis(data=df_tangibility, x=independent_variable, m=mediation_variable, y=dependent_variable, alpha=0.05) # significant if the confidence intervals do not include zero
@@ -722,13 +741,13 @@ def main():
     # Process with pyprocessmarco
     # https://pypi.org/project/PyProcessMacro/
     if 0: # not yet implemented
-        independent_variables = 'DeownershipOrientation', 'EVAttitude'
-        mediation_variable = 'FODAttitude'
-        dependent_variable = 'PackageAcceptance'
-        df_modified = df[[independent_variable, mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
+        independent_variables = 'FunctionImportance', 'EVAttitude'
+        mediation_variable = 'Tangibility'
+        dependent_variable = 'FunctionAcceptance'
+        df_modified = df[[independent_variables[0], independent_variable[1], mediation_variable, dependent_variable]].dropna(how='any') #how='all' also possible
         print(independent_variable, "->", mediation_variable, "->", dependent_variable)
 
-        process_result = Process(data=df, model=13, x=independent_variable, y=dependent_variable, 
+        process_result = Process(data=df, model=13, x=independent_variables[0], y=dependent_variable, z=independent_variables[1], 
                                 m=mediation_variable,
                                 modval={
                                     independent_variable: [3,3.5,4]
