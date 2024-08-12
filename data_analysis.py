@@ -318,11 +318,11 @@ def main():
     RideTypeNames = ['RideTypeCommute', 'RideTypeShopping', 'RideTypeChild', 'RideTypeLeisure']
     PurchasePrioNames = ['PurchasePrioGuarantee', 'PurchasePrioFunctions', 'PurchasePrioBrand', 'PurchasePrioQuality', 'PurchasePrioPrice']
     dependent_variables = ['FODFinancialAppeal','FODAttitude','FunctionAcceptance', 'PackageAcceptance']
-    if 1:
+    if 0:
         deleted_variables = RideTypeNames + PurchasePrioNames
         for var in deleted_variables:
             independent_variables.remove(var)
-    if 1:
+    if 0:
         print("Kruskal-Wallis Test")
         df_kruskal = kruskal_get_results(df, independent_variables, dependent_variables)
         pd.set_option('display.max_rows', 68)
@@ -382,7 +382,7 @@ def main():
         print("indep: ", significant_independent_variables, "\ndep: ", dependent_variables)
         tukey_printout(df, significant_independent_variables, dependent_variables)
         
-    if 1:
+    if 0:
         df_kruskal_significant = df_kruskal.loc[df_kruskal['p_value'] < 0.1]
         print(df_kruskal_significant)
         for var1, var2 in zip(df_kruskal_significant['independent_var'], df_kruskal_significant['dependent_var']):
@@ -451,7 +451,7 @@ def main():
         #plt.xlabel("Do you have a driving license?\n 1: No, I don't plan it; 2: No, but I plan it in next two years\n 3: Yes, less than year; 4: Yes, 1 to 2 years\n5: Yes, 2 to 5 years; 6: Yes, more than 5 years")
         plt.show()
 
-    if 1:
+    if 0: # 
         plt.figure()
         indep = 'CarType'
         dep = 'FODFinancialAppeal'
@@ -468,27 +468,123 @@ def main():
 
     # RQ3: What psychological concepts influence the functions-on-demand acceptance?
     if 0:
+        independent_variables = ['CarInstrumentalPerception',
+                                'CarFinancialRisk',
+                                'CarSocialValue',
+                                'CarEmotionalInvestement',
+                                'EVAttitude',
+                                'Materialism',
+                                'DeownershipOrientation',
+                                'PsychologicalOwnership',
+                                'Innovativeness',
+                                'TechnologyPhobia',
+                                'TechnologyInterest']
+        dependent_variables = ['FODAttitude', 'FODFinancialAppeal', 'FunctionImportance', 'FunctionAcceptance', 'PackageImportance', 'PackageAcceptance']
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
-        independent_variables = new_variables
-        
-        for variable in independent_variables + dependent_variables:
-            print(variable, ", mean: ", df[variable].mean(), ", std: ", df[variable].std())
-        iteration = 0
-        for independent_variable in independent_variables:
-            for dependent_variable in dependent_variables:
-                if independent_variable != dependent_variable:
-                    
-                    df_modified = df[[independent_variable, dependent_variable]].dropna(how='any') #how='all' also possible
-                    corr, p_value = stats.pearsonr(df_modified[independent_variable], df_modified[dependent_variable])
-                    if p_value < 0.1:
-                        print(iteration, ". ",independent_variable, " ~ ", dependent_variable)
-                        print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
-                    iteration += 1
+        variables_1 = []
+        variables_2 = []
+        pear_correlations = []
+        pear_p_values = []
+        kend_correlations = []
+        kend_p_values = [] 
+        for indep_var in independent_variables:
+            for dep_var in dependent_variables:
+                variables_1.append(indep_var)
+                variables_2.append(dep_var)
+                df_modified = df[[indep_var, dep_var]].dropna(how='any') #how='all' also possible
+                df_modified = df_modified.astype(float)
+                #print("indep_var:",indep_var, "dep_var:", dep_var)
+                corr, p_value = stats.pearsonr(df_modified[indep_var], df_modified[dep_var])
+                pear_correlations.append(corr)
+                pear_p_values.append(p_value)
+                corr, p_value = stats.kendalltau(df_modified[indep_var], df_modified[dep_var])
+                kend_correlations.append(corr)
+                kend_p_values.append(p_value)
+                #print(var1, " ~ ", var2)
+                #print(f'r={corr:.3f}, \\textalpha={p_value:.4f}') #format used in the paper
+        df_correlation = pd.DataFrame({'indep': variables_1,
+                                        'dep': variables_2,
+                                        'pear corr': pear_correlations,
+                                        'pear p_value': pear_p_values,
+                                        'kend corr': kend_correlations,
+                                        'kend p_value': kend_p_values})
+        df_correlation = df_correlation.sort_values('pear p_value')
+        #print(df_correlation)
+
+        # Mediation regression analysis
+        independent_variables = ['Innovativeness', 'TechnologyPhobia', 'TechnologyInterest', 'Materialism', 'DeownershipOrientation', 'CarSocialValue', 'CarEmotionalInvestement', 'CarFinancialRisk']
+        dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
+        independent_variable = 'DeownershipOrientation'
+        mediation_variable = 'FODAttitude'
+        dependent_variable = 'FunctionAcceptance'
+        variables_1 = []
+        variables_2 = []
+        fun_coef = []
+        fun_p_value = []
+        fun_sig = []
+        pac_coef = []
+        pac_p_value = [] 
+        pac_sig = []
+        row_num = 3
+        for indep in independent_variables:
+            
+            for dep in dependent_variables:
+                df_modified = df[[indep, mediation_variable, dep]].dropna(how='any') #how='all' also possible
+                #print(independent_variable, "->", mediation_variable, "->", dependent_variable)
+                for column in [indep, mediation_variable, dep]:
+                    df_modified[column] = df_modified[column].astype(float)
+                # print(df_modified.dtypes)
+                statistic_mediation = mediation_analysis(data=df_modified, x=indep, m=mediation_variable, y=dep, alpha=0.1) # significant if the confidence intervals do not include zero
+                if dep == 'FunctionAcceptance':
+                    variables_1.append(indep)
+                    fun_coef.append(statistic_mediation.iloc[row_num]['coef'])
+                    fun_p_value.append(statistic_mediation.iloc[row_num]['pval'])
+                    fun_sig.append(statistic_mediation.iloc[row_num]['sig'])
+                else:
+                    pac_coef.append(statistic_mediation.iloc[row_num]['coef'])
+                    pac_p_value.append(statistic_mediation.iloc[row_num]['pval'])
+                    pac_sig.append(statistic_mediation.iloc[row_num]['sig'])
+                #print(indep, '~', dep)
+                #print(statistic_mediation)
+
+        df_mediation = pd.DataFrame({'Independent Variable': variables_1,
+                                        'F: Coef.': fun_coef,
+                                        'F: P-value': fun_p_value,
+                                        #'F: Sig': fun_sig,
+                                        'P: Coef.': pac_coef,
+                                        'P: P-value': pac_p_value#,
+                                        #'P: Sig': pac_sig
+                                        })
+        df_mediation = df_mediation.sort_values('F: P-value')
+        print(df_mediation)
+
+        latex_table_title = 'Mediation Analysis Results'
+        latex_table_note = 'Note'
+        latex_table_name = 'RQ3MediationTable'
+        latex_table = df_mediation.to_latex(index=False, float_format="{:.4f}".format, bold_rows=True)
+        latex_table = latex_table.split('\n',1)[1]
+        latex_table = latex_table[:-14]
+        latex_table = ("\\begin{table}[!h]\n" + ""
+        "\\begin{center}\n" +
+        "\\begin{threeparttable}\n" +
+            "\\label{"+latex_table_name+"}\n" +
+            "\\caption{\\textit{" + latex_table_title + "}}\n" +
+            "\\begin{tabularx}{\\textwidth}{X c c c c c c}\n" +
+                latex_table + 
+            "\\end{tabularx}\n"+
+            "\\begin{tablenotes}\n"+
+                "\\small\n"+
+                "\\item \\textit{Note} " + latex_table_note + "\n"+
+            "\\end{tablenotes}\n"+
+        "\\end{threeparttable}\n"+
+        "\\end{center}\n"+
+        "\\end{table}\n")
+        print(latex_table)
 
 
     # RQ4: Difference between German and Czech Participants
     # differences of the groups
-    if 0:
+    if 1:
         geo_variables = ['Country', 'BirthPlace']
         dependent_variables = ['FunctionAcceptance', 'PackageAcceptance']
         for geo_variable in geo_variables:
@@ -503,7 +599,6 @@ def main():
                     print(i+1, "std:", df.loc[(df[geo_variable] == i+1), dependent_variable].std())
         print("Levene test for countries") # more robust test than F-test
         levene_printout(df, dependent_variables, geo_variables)
-        plot_variance(df, 'Country', 'FunctionAcceptance')
         print("ANOVA for countries")
         anova_printout(df, geo_variables, dependent_variables)
         print("Kruskal for countries")
@@ -513,6 +608,12 @@ def main():
         if 0:
             plot_variance(df, geo_variables[1], dependent_variables[0])
             plot_variance(df, geo_variables[1], dependent_variables[1])
+        indep = 'BirthPlace'
+        dep = 'PackageAcceptance'
+        ax = sns.boxplot(x=indep, y=dep, data=df)
+        ax = sns.swarmplot(x=indep, y=dep, data=df)
+        plt.xlabel("BirthPlace\n 1: Germany, 2: Czech Republic\n 3: Other")
+        plt.show()
 
     # RQ5: role of tangibility (and importance)
     df_tangibility = pd.read_excel(r"C:\Users\domin\Documents\Bachelorarbeit\data_tangibility.xlsx", index_col=None)
